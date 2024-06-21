@@ -25,7 +25,7 @@ class Pico:
                  button_4 = Pin(19, Pin.IN, Pin.PULL_UP),
                  led = Pin(25, Pin.OUT),
                  buzzer = PWM(Pin(20)),
-                 buzzer_5_count = 5): 
+                 buzzer_5_count = 4): 
 
         self.debounce_time: int = debounce_time
 
@@ -85,7 +85,7 @@ class Pico:
     def buzzer_toggle(self, duration):
         if self.buzzer_5_count == 0:
             self.buzzer.freq(750)
-            self.buzzer_5_count = 5
+            self.buzzer_5_count = 4
         else:
             self.buzzer.freq(500)
             self.buzzer_5_count -= 1
@@ -201,14 +201,22 @@ class Display_Stats:
             self.current_countdown -= 1
             if pico.interrupt_1:
                 pico.interrupt_1 = 0
+                self.last_interrupted_countdown = self.current_countdown
+                self.current_countdown = self.user_input_timer_duration
+                self.awaiting_countdown = True
+                self.extension = False
+                pico.buzzer_5_count = 4
                 # self.blink(shot_clock = True)
+                break
+            if pico.interrupt_2:
                 if self.extension:
                     pass
                 else:
                     self.extension = True
                     self.current_countdown += 30
-            if pico.interrupt_2 or pico.interrupt_3:
+                    pico.buzzer_5_count = 4
                 pico.interrupt_2 = 0
+            if pico.interrupt_3:
                 pico.interrupt_3 = 0
             if pico.interrupt_4:
                 pico.interrupt_4 = 0
@@ -216,7 +224,7 @@ class Display_Stats:
                 self.current_countdown = self.user_input_timer_duration
                 self.awaiting_countdown = True
                 self.extension = False
-                # self.countdown_complete = True
+                pico.buzzer_5_count = 4
                 self.update_inning_counter(True)
                 break
             if self.current_countdown == 0:
@@ -286,8 +294,6 @@ while True:
     if pico.interrupt_1:
         pico.interrupt_1 = 0
         display_stats.countdown()
-        if display_stats.awaiting_countdown and display_stats.inning_updated == 0:
-            display_stats.update_inning_counter(True)
 
     # button_2 switch decrements the inning_counter variable, but won't decrement lower than 1.0
     if pico.interrupt_2:
@@ -304,9 +310,6 @@ while True:
     # button_4 switch 
     if pico.interrupt_4:
         pico.interrupt_4 = 0
-        if display_stats.extension:
-            display_stats.current_countdown -= 30
-            display_stats.extension = False
-        else:
-            display_stats.extension = True
-            display_stats.current_countdown += 30
+        display_stats.countdown()
+        if display_stats.awaiting_countdown and display_stats.inning_updated == 0:
+            display_stats.update_inning_counter(True)
