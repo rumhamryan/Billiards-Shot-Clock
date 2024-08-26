@@ -1,8 +1,6 @@
 from machine import Pin, SPI
 import time
-import Pico_OLED_242
-from ssd1306_driver import SSD1306_SPI  
-
+import lib.Pico_OLED_242 as Pico_OLED_242
 led = Pin(25, Pin.OUT)
 
 
@@ -151,10 +149,10 @@ text_size = 8
 #     time.sleep(1)
 #     countdown -= 1
 
-OLED.text_scaled(str(countdown), 0, 0, 8)
-OLED.text_scaled(str(0), 60, 0, 8)
-OLED.show()
-time.sleep(3)
+# OLED.text_scaled(str(countdown), 0, 0, 8)
+# OLED.text_scaled(str(1), 0, 0, 8)
+# OLED.show()
+# time.sleep(3)
 
 OLED.fill(OLED.black)
 OLED.show()

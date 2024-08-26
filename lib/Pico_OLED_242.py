@@ -30,9 +30,9 @@ class OLED_2inch42(framebuf.FrameBuffer):
         
         if(Device == Device_SPI):
             self.cs(1)
-            self.spi = SPI(1)
-            self.spi = SPI(1,1000_000)
-            self.spi = SPI(1,10000_000,polarity=0, phase=0,sck=Pin(SCK),mosi=Pin(MOSI),miso=None)
+            self.spi = SPI(0)
+            self.spi = SPI(0,1000_000)
+            self.spi = SPI(0,10000_000,polarity=0, phase=0,sck=Pin(SCK),mosi=Pin(MOSI),miso=None)
             self.dc(1)     
         else :
             self.dc(0)
@@ -68,7 +68,7 @@ class OLED_2inch42(framebuf.FrameBuffer):
             self.i2c.writeto(0x3c, self.temp)
 
     def init_display(self):
-        """Initialize dispaly"""  
+        """Initialize display"""  
         self.rst(1)
         utime.sleep(0.001)
         self.rst(0)
