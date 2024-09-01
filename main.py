@@ -5,7 +5,7 @@
 ##################################################
 
 
-from machine import Pin, PWM # type: ignore
+from machine import I2S, Pin, PWM # type: ignore
 import lib.Pico_OLED_242 as Pico_OLED_242 # type: ignore
 import _thread # type: ignore
 import utime # type: ignore
@@ -174,7 +174,7 @@ def shot_clock():
             countdown_check = process_timer_duration(game.countdown)
 
             if game.countdown < 5:
-                _thread.start_new_thread(speaker_toggle, ())
+                _thread.start_new_thread(shot_clock_beep, ())
 
             if process_timer_duration(game.countdown)[0] == countdown_check[0]:
                 single_digit_update = True
@@ -429,21 +429,40 @@ def update_counters():
                     idle_mode()
                 return
 
-# Toggle the speaker, longer duration and higher pitch for final toggle
-def speaker_toggle():
-    if game.speaker_5_count > 0:
-        duration = 0.2
-    else:
-        duration = 0.8
-    if game.speaker_5_count == 0:
-        speaker.freq(750)
-        game.speaker_5_count = 4
-    else:
-        speaker.freq(500)
-        game.speaker_5_count -= 1
-    speaker.duty_u16(10000) # value makes the speakers loud without clipping, so there's room to go higher
-    utime.sleep(duration)
-    speaker.duty_u16(0)
+# This will send the wave file "beep_3_processed.wav" to the MAX98357A
+def shot_clock_beep():
+    # Initialize I2S
+    audio_out = I2S(
+    0,
+    sck=Pin(11),   # BCLK
+    ws=Pin(12),    # LRC
+    sd=Pin(10),     # DIN
+    mode=I2S.TX,
+    bits=16,
+    format=I2S.MONO,
+    rate=48000,    # Sample rate, should match the .wav file
+    ibuf=20000)     # Buffer size
+    
+    # Open WAV file
+    wav_file = open("beep_3_processed.wav", "rb")
+
+    # Skip WAV header (typically 44 bytes)
+    wav_file.seek(80)
+
+    # Buffer to hold audio data
+    wav_buffer = bytearray(1024)
+
+    # Play audio
+    try:
+        while True:
+            num_read = wav_file.readinto(wav_buffer)
+            if num_read == 0:
+                break  # End of file
+            audio_out.write(wav_buffer)
+    finally:
+        # Cleanup
+        wav_file.close()
+        audio_out.deinit()
 
 
 # Start Program

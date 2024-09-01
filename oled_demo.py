@@ -3,34 +3,6 @@ import time
 import lib.Pico_OLED_242 as Pico_OLED_242
 led = Pin(25, Pin.OUT)
 
-
-################################################################
-# 1306 driver
-
-
-# spi = SPI(1,10000_000,polarity=0, phase=0,sck=Pin(10),mosi=Pin(11),miso=None)
-# oled = SSD1306_SPI(128, 64, spi, Pin(14), Pin(12), Pin(13))
-
-# while True:
-#     try:
-#         for i in range(40):
-#             for j in range(56):
-                
-#                 oled.fill(0)
-#                 oled.show()
-#                 #sleep(1)
-#                 oled.text("HELLO WORLD",i,j)
-#                 oled.show()
-#                 time.sleep_ms(10)
-#     except KeyboardInterrupt:
-#         break
-
-
-
-###############################################################
-# 1309 driver
-
-
 OLED = Pico_OLED_242.OLED_2inch42()
 
 # OLED.fill(0x0000) 
