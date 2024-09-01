@@ -9,6 +9,8 @@ from machine import I2S, Pin, PWM # type: ignore
 import lib.Pico_OLED_242 as Pico_OLED_242 # type: ignore
 import _thread # type: ignore
 import utime # type: ignore
+
+debounce = 200
     
 # Define flags to control interrupt re-registration for each button
 interrupt_registered = {
@@ -57,8 +59,9 @@ miss_button.irq(trigger=Pin.IRQ_RISING, handler=handle_miss)
 
 # Used to track the state of the device
 class State_Machine:
-    def __init__(self, profile_selection = True, shot_clock_idle = False, countdown_in_progress = False, countdown_complete = False, game_on = False):
+    def __init__(self, speaker_muted = False, profile_selection = True, shot_clock_idle = False, countdown_in_progress = False, countdown_complete = False, game_on = False):
 
+        self.speaker_muted: bool = speaker_muted
         self.profile_selection: bool = profile_selection
         self.shot_clock_idle: bool = shot_clock_idle
         self.countdown_in_progress: bool = countdown_in_progress
@@ -198,7 +201,7 @@ def shot_clock():
             game.countdown -= 1
             countdown_check = process_timer_duration(game.countdown)
 
-            if game.countdown < 5:
+            if game.countdown < 5 and not state_machine.speaker_muted:
                 _thread.start_new_thread(shot_clock_beep, ())
 
             if process_timer_duration(game.countdown)[0] == countdown_check[0]:
@@ -252,7 +255,7 @@ def shot_clock():
             if game.selected_profile == "APA":
                 game.extension_available = True
                 game.extension_used = False
-            utime.sleep_ms(200)  # Debounce delay
+            utime.sleep_ms(debounce)  # Debounce delay
             while make_button.value() == 1:
                 pass  # Wait for button release
             interrupt_registered['make'] = False  # Re-enable interrupt registration
@@ -266,7 +269,7 @@ def shot_clock():
             return
         
         if interrupt_registered['up']:
-            utime.sleep_ms(200)  # Debounce delay
+            utime.sleep_ms(debounce)  # Debounce delay
             interrupt_registered['up'] = False  # Re-enable interrupt registration
             if game.extension_available and not game.extension_used:
                 game.countdown += game.extension_duration
@@ -281,7 +284,7 @@ def shot_clock():
         if interrupt_registered['miss']:
             game.countdown = game.profile_based_countdown
             game.inning_counter +=0.5
-            utime.sleep_ms(200)  # Debounce delay
+            utime.sleep_ms(debounce)  # Debounce delay
             while miss_button.value() == 1:
                 pass  # Wait for button release
             interrupt_registered['miss'] = False  # Re-enable interrupt registration
@@ -307,23 +310,19 @@ def select_game_profile():
     display_text("Select Game:", 15, 10, 1)
     while True:
         if utime.time() - inactivity_check > 0.25:
-            print("top")
             if utime.time() - countdown_checker > 0.1:
                 countdown_checker = utime.time()
                 if off:
-                    print("offf")
                     display_clear(profile_selection=True)
                     off = False
                 else:
-                    print("on")
                     display_text(str((profile_list[list_traverser])), 25, 30, 3)
                     off = True
         else:
-            print("bottom")
             display_text(str((profile_list[list_traverser])), 25, 30, 3)
 
         if interrupt_registered['make']:
-            utime.sleep_ms(200)  # Debounce delay
+            utime.sleep_ms(debounce)  # Debounce delay
             while make_button.value() == 1:
                 pass  # Wait for button release
             interrupt_registered['make'] = False  # Re-enable interrupt registration
@@ -341,7 +340,7 @@ def select_game_profile():
             return
         
         if interrupt_registered['up']:
-            utime.sleep_ms(200)  # Debounce delay
+            utime.sleep_ms(debounce)  # Debounce delay
             interrupt_registered['up'] = False  # Re-enable interrupt registration
             while up_button.value() == 1:
                 pass  # Wait for button release
@@ -360,7 +359,7 @@ def select_game_profile():
             inactivity_check = utime.time()
 
         if interrupt_registered['down']:
-            utime.sleep_ms(200)  # Debounce delay
+            utime.sleep_ms(debounce)  # Debounce delay
             while miss_button.value() == 1:
                 pass  # Wait for button release
             interrupt_registered['down'] = False  # Re-enable interrupt registration
@@ -382,7 +381,7 @@ def update_counters():
     inactivity_check = utime.time()
     countdown_checker = utime.time()
     off = False
-    selection_list = ["rack", "inning", None]
+    selection_list = ["rack", "inning", "mute", None]
     list_traverser = 0
     inning_counter_before_mod = game.inning_counter
     rack_counter_before_mode = game.rack_counter
@@ -410,7 +409,7 @@ def update_counters():
                 display_text(f"Rack:{int(game.rack_counter)}", 72, 57, 1)
 
         if interrupt_registered['make']:
-            utime.sleep_ms(200)  # Debounce delay
+            utime.sleep_ms(debounce)  # Debounce delay
             while make_button.value() == 1:
                 pass  # Wait for button release
             interrupt_registered['make'] = False  # Re-enable interrupt registration    
@@ -423,7 +422,7 @@ def update_counters():
             return
         
         if interrupt_registered['up']:
-            utime.sleep_ms(200)  # Debounce delay
+            utime.sleep_ms(debounce)  # Debounce delay
             while up_button.value() == 1:
                 pass  # Wait for button release
             interrupt_registered['up'] = False  # Re-enable interrupt registration
@@ -431,6 +430,11 @@ def update_counters():
                 game.inning_counter += 1
             elif selected_variable == "rack":
                 game.rack_counter += 1
+            elif selected_variable == "mute":
+                if state_machine.speaker_muted:
+                    state_machine.speaker_muted = False
+                else:
+                    state_machine.speaker_muted = True
             if off:
                 if selected_variable == "inning":
                     display_clear(inning_counter=True)
@@ -446,7 +450,7 @@ def update_counters():
             inactivity_check = utime.time()
 
         if interrupt_registered['down']:
-            utime.sleep_ms(200)  # Debounce delay
+            utime.sleep_ms(debounce)  # Debounce delay
             while down_button.value() == 1:
                 pass  # Wait for button release
             interrupt_registered['down'] = False  # Re-enable interrupt registration
@@ -466,10 +470,15 @@ def update_counters():
                         display_text(f"Rack:{int(game.rack_counter)}", 72, 57, 1)
                     else:
                         display_clear(rack_counter=True)
+            elif selected_variable == "mute":
+                if state_machine.speaker_muted:
+                    state_machine.speaker_muted = False
+                else:
+                    state_machine.speaker_muted = True
             inactivity_check = utime.time()
 
         if interrupt_registered['miss']:
-            utime.sleep_ms(200)  # Debounce delay
+            utime.sleep_ms(debounce)  # Debounce delay
             while miss_button.value() == 1:
                 pass  # Wait for button release
             interrupt_registered['miss'] = False  # Re-enable interrupt registration
@@ -526,14 +535,14 @@ select_game_profile()
 while True:
 
     if interrupt_registered['make']:
-        utime.sleep_ms(200)  # Debounce delay
+        utime.sleep_ms(debounce)  # Debounce delay
         while make_button.value() == 1:
             pass  # Wait for button release
         interrupt_registered['make'] = False  # Re-enable interrupt registration
         shot_clock()
 
     if interrupt_registered['up']:
-        utime.sleep_ms(200)  # Debounce delay
+        utime.sleep_ms(debounce)  # Debounce delay
         interrupt_registered['up'] = False  # Re-enable interrupt registration
         if not game.selected_profile == "Timeouts Mode":
             if game.extension_available:
@@ -548,14 +557,14 @@ while True:
         idle_mode()
 
     if interrupt_registered['down']:
-        utime.sleep_ms(200)  # Debounce delay
+        utime.sleep_ms(debounce)  # Debounce delay
         while down_button.value() == 1:
             pass  # Wait for button release
         interrupt_registered['down'] = False  # Re-enable interrupt registration
         idle_mode()
 
     if interrupt_registered['miss']:
-        utime.sleep_ms(200)  # Debounce delay
+        utime.sleep_ms(debounce)  # Debounce delay
         while miss_button.value() == 1:
             pass  # Wait for button release
         interrupt_registered['miss'] = False  # Re-enable interrupt registration
