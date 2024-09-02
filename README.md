@@ -6,24 +6,28 @@ Peripherals are an OLED screen, 4 buttons, an audio ampmlifier with 2 speakers, 
 Peripheral PINOUT
 
 OLED Display
-SCK  =  2 (purple)
-MOSI =  3 (grey)
-RST  =  4 (yellow)
-CS   =  5 (blue)
-DC   =  6 (green)
+SCK  = GP2 (purple)
+MOSI = GP3 (grey)
+RST  = GP4 (yellow)
+CS   = GP5 (blue)
+DC   = GP6 (green)
 
 Buttons (PULL_DOWN)
-button_1 = GND, GP16 (make button)
-button_2 = GND, GP17 (up button)
-button_3 = GND, GP18 (down button)
-button_4 = GND, GP19 (miss button)
+button_1 = 3v3, GP16 (make button)
+button_2 = 3v3, GP17 (up button)
+button_3 = 3v3, GP18 (down button)
+button_4 = 3v3, GP19 (miss button)
 
-Audio Ammplifier Circuit
-buzzer = GND, GP20
-power+ = VSYS
-power- = GND
+MAX98357A DAC + 3W Amplifier
+DIN  = GP10
+LRC  = GP11
+BCLK = GP12
+GAIN = GND
+VIN  = 3v3
+OUT+ = 4ohm speaker +
+OUT- = 4ohm speaker -
 
-4056 Li-on Charging Circuit
+TP4056 Li-on Charging Circuit
 OUT+ = ON/OFF Switch > VSYS
 OUT- = GND
 
