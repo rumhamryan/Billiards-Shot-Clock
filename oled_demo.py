@@ -123,8 +123,21 @@ text_size = 8
 
 # OLED.text_scaled(str(countdown), 0, 0, 8)
 # OLED.text_scaled(str(1), 0, 0, 8)
+# OLED.text_scaled("Menu", 24, 2, 2)
+# OLED.line(23,18,88,18,OLED.white)
+# OLED.line(23,19,88,19,OLED.white)
+# OLED.text_scaled("Inning:99", 24, 24, 1)
+# OLED.rect(80,24,16,8,OLED.black, True) #counter location
+# OLED.rect(8,24,8,8,OLED.white, True) #selector location
+# OLED.text_scaled("Rack:99", 24, 40, 1)
+# OLED.rect(64,40,16,8,OLED.black, True) #counter location
+# OLED.rect(8,40,8,8,OLED.white, True) #selector location
+# OLED.text_scaled("Mute:Yes", 24, 56, 1)
+# OLED.rect(64,56,24,8,OLED.black, True) #counter location
+# OLED.rect(8,56,8,8,OLED.white, True) #selector location
+# OLED.rect(8,24,8,64,OLED.black, True) #clear selector locations
 # OLED.show()
-# time.sleep(3)
+# time.sleep(10)
 
 OLED.fill(OLED.black)
 OLED.show()

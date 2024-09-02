@@ -31,8 +31,8 @@ debounce_time = 0
 def interrupt_handler(pin):
     global debounce_time
     # debounce_time = utime.ticks_ms()
-    if (utime.ticks_ms() - debounce_time) > 200:
-        debounce_time = utime.ticks_ms()
+    # if (utime.ticks_ms() - debounce_time) > 200:
+    debounce_time = utime.ticks_ms()
 
 # Attach interrupt handlers to each button
 make_button.irq(trigger=Pin.IRQ_FALLING, handler=interrupt_handler)
@@ -145,7 +145,7 @@ def display_text(payload, x_coordinates, y_coordinates, font_size):
     OLED.show()
 
 # Clears sections or all of the screen. Basically turning the pixels off for the coordinates
-def display_clear(shot_clock_digit_1=False, shot_clock_digit_2=False, profile_selection=False, inning_counter=False, rack_counter=False, everything=False):
+def display_clear(shot_clock_digit_1=False, shot_clock_digit_2=False, profile_selection=False, inning_counter=False, rack_counter=False, menu_selector=False,menu_inning_counter=False, menu_rack_counter=False, menu_mute_bool=False, everything=False):
     if profile_selection:
         OLED.rect(0,20,128,44,OLED.black, True)
         OLED.show()
@@ -163,6 +163,18 @@ def display_clear(shot_clock_digit_1=False, shot_clock_digit_2=False, profile_se
         OLED.show()
     elif shot_clock_digit_2:
         OLED.rect(62,0,66,56,OLED.black, True)
+        OLED.show()
+    elif menu_selector:
+        OLED.rect(8,24,8,64,OLED.black, True)
+        OLED.show()
+    elif menu_inning_counter:
+        OLED.rect(80,24,16,8,OLED.black, True)
+        OLED.show()
+    elif menu_rack_counter:
+        OLED.rect(64,40,16,8,OLED.black, True)
+        OLED.show()
+    elif menu_mute_bool:
+        OLED.rect(64,56,24,8,OLED.black, True)
         OLED.show()
     elif everything:
         OLED.fill(OLED.black)
@@ -356,111 +368,170 @@ def select_game_profile():
                 display_clear(profile_selection=True)
             inactivity_check = utime.time()
 
-# This will allow for the selection and updating of game.inning_counter and game.rack_counter
-def update_counters():
-    inactivity_check = utime.time()
-    countdown_checker = utime.time()
-    off = False
-    selection_list = ["rack", "inning", "mute", None]
-    list_traverser = 0
-    inning_counter_before_mod = game.inning_counter
-    rack_counter_before_mode = game.rack_counter
-    selected_variable = selection_list[list_traverser]
-    while True:
-        if utime.time() - inactivity_check > 0.25:
-            if utime.time() - countdown_checker > 0.25:
-                countdown_checker = utime.time()
-                if off:
-                    if selected_variable == "inning":
-                        display_clear(inning_counter=True)
-                    elif selected_variable == "rack":
-                        display_clear(rack_counter=True)
-                    off = False
-                else:
-                    if selected_variable == "inning":
-                        display_text(f"Inning:{int(game.inning_counter)}", 0, 57, 1)
-                    elif selected_variable == "rack":
-                        display_text(f"Rack:{int(game.rack_counter)}", 72, 57, 1)
-                    off = True
+#This will open a menu that can edit, game.inning_counter, game.rack_counter, and state_machine.speaker_muted
+def idle_menu():
+    if state_machine.shot_clock_idle:
+        display_clear(everything=True)
+        inactivity_check = utime.time()
+        countdown_checker = utime.time()
+        off = False
+        selection_list = ["inning", "rack", "mute", None]
+        list_traverser = 0
+        inning_counter_before_mod = game.inning_counter
+        rack_counter_before_mode = game.rack_counter
+        selected_variable = selection_list[list_traverser]
+        OLED.text_scaled("Menu", 24, 2, 2)
+        OLED.line(23,18,88,18,OLED.white) #underline "Menu"
+        OLED.line(23,19,88,19,OLED.white) #make it bold
+        OLED.text_scaled(f"Inning:{int(game.inning_counter)}", 24, 24, 1)
+        OLED.rect(8,24,8,8,OLED.white, True)
+        OLED.text_scaled(f"Rack:{int(game.rack_counter)}", 24, 40, 1)
+        if state_machine.speaker_muted:
+            OLED.text_scaled("Mute:Yes", 24, 56, 1)
         else:
-            if selected_variable == "inning":
-                display_text(f"Inning:{int(game.inning_counter)}", 0, 57, 1)
-            elif selected_variable == "rack":
-                display_text(f"Rack:{int(game.rack_counter)}", 72, 57, 1)
-
-        if make_button.value():
-            make_button_pressed()  
-            if game.rack_counter != rack_counter_before_mode:
-                game.extension_available = True
-                game.break_shot = True
-                display_clear(shot_clock_digit_1=True, shot_clock_digit_2=True)
-            idle_mode()
-            shot_clock()
-            return
-        
-        if up_button.value():
-            up_button_pressed()
-            if selected_variable == "inning":
-                game.inning_counter += 1
-            elif selected_variable == "rack":
-                game.rack_counter += 1
-            elif selected_variable == "mute":
-                if state_machine.speaker_muted:
-                    state_machine.speaker_muted = False
-                else:
-                    state_machine.speaker_muted = True
-            if off:
-                if selected_variable == "inning":
-                    display_clear(inning_counter=True)
-                    display_text(f"Inning:{int(game.inning_counter)}", 0, 57, 1)
-                elif selected_variable == "rack":
-                    display_clear(rack_counter=True)
-                    display_text(f"Rack:{int(game.rack_counter)}", 72, 57, 1)
+            OLED.text_scaled("Mute:No", 24, 56, 1)
+        OLED.show()
+        while True:
+            if utime.time() - inactivity_check > 0.25:
+                if utime.time() - countdown_checker > 0.1:
+                    countdown_checker = utime.time()
+                    if off:
+                        if selected_variable == "inning":
+                            display_clear(menu_inning_counter=True)
+                        elif selected_variable == "rack":
+                            display_clear(menu_rack_counter=True)
+                        elif selected_variable == "mute":
+                            display_clear(menu_mute_bool=True)
+                        off = False
+                    else:
+                        if selected_variable == "inning":
+                            display_text(str(int(game.inning_counter)), 80, 24, 1)
+                        elif selected_variable == "rack":
+                            display_text(str(game.rack_counter), 64, 40, 1)
+                        elif selected_variable == "mute":
+                            if state_machine.speaker_muted:
+                                display_text(str("Yes"), 64, 56, 1)
+                            else:
+                                display_text(str("No"), 64, 56, 1)
+                        off = True
             else:
                 if selected_variable == "inning":
-                    display_clear(inning_counter=True)
+                    display_text(str(int(game.inning_counter)), 80, 24, 1)
                 elif selected_variable == "rack":
-                    display_clear(rack_counter=True)
-            inactivity_check = utime.time()
-
-        if down_button.value():
-            down_button_pressed()
-            if selected_variable == "inning":
-                if game.inning_counter - 1 > 0:
-                    game.inning_counter -= 1
-                    if off:
-                        display_clear(inning_counter=True)
-                        display_text(f"Inning:{int(game.inning_counter)}", 0, 57, 1)
+                    display_text(str(game.rack_counter), 64, 40, 1)
+                elif selected_variable == "mute":
+                    if state_machine.speaker_muted:
+                        display_text(str("Yes"), 64, 56, 1)
                     else:
-                        display_clear(inning_counter=True)
-            elif selected_variable == "rack":
-                if game.rack_counter - 1 > 0:
-                    game.rack_counter -= 1
-                    if off:
-                        display_clear(rack_counter=True)
-                        display_text(f"Rack:{int(game.rack_counter)}", 72, 57, 1)
-                    else:
-                        display_clear(rack_counter=True)
-            elif selected_variable == "mute":
-                if state_machine.speaker_muted:
-                    state_machine.speaker_muted = False
-                else:
-                    state_machine.speaker_muted = True
-            inactivity_check = utime.time()
+                        display_text(str("No"), 64, 56, 1)
 
-        if miss_button.value():
-            miss_button_pressed()
-            idle_mode()
-            list_traverser += 1
-            selected_variable = selection_list[list_traverser]
-            if selected_variable == None:
+            if make_button.value():
+                make_button_pressed()  
                 if game.rack_counter != rack_counter_before_mode:
                     game.extension_available = True
-                    game.extension_used = False
                     game.break_shot = True
-                    display_clear(shot_clock_digit_1=True, shot_clock_digit_2=True)
-                    idle_mode()
+                display_clear(everything=True)
+                idle_mode()
+                shot_clock()
                 return
+            
+            if up_button.value():
+                up_button_pressed()
+                if selected_variable == "inning":
+                    game.inning_counter += 1
+                elif selected_variable == "rack":
+                    game.rack_counter += 1
+                elif selected_variable == "mute":
+                    if state_machine.speaker_muted:
+                        state_machine.speaker_muted = False
+                    else:
+                        state_machine.speaker_muted = True
+                if off:
+                    if selected_variable == "inning":
+                        display_clear(menu_inning_counter=True)
+                        display_text(str(int(game.inning_counter)), 80, 24, 1)
+                    elif selected_variable == "rack":
+                        display_clear(menu_rack_counter=True)
+                        display_text(str(game.rack_counter), 64, 40, 1)
+                    elif selected_variable == "mute":
+                        display_clear(menu_mute_bool=True)
+                        if state_machine.speaker_muted:
+                            display_text(str("Yes"), 64, 56, 1)
+                        else:
+                            display_text(str("No"), 64, 56, 1)
+                else:
+                    if selected_variable == "inning":
+                        display_clear(menu_inning_counter=True)
+                    elif selected_variable == "rack":
+                        display_clear(menu_rack_counter=True)
+                    elif selected_variable == "mute":
+                        display_clear(menu_mute_bool=True)
+                inactivity_check = utime.time()
+
+            if down_button.value():
+                down_button_pressed()
+                if selected_variable == "inning":
+                    if game.inning_counter - 1 > 0:
+                        game.inning_counter -= 1
+                        if off:
+                            display_clear(menu_inning_counter=True)
+                            display_text(str(int(game.inning_counter)), 80, 24, 1)
+                        else:
+                            display_clear(menu_inning_counter=True)
+                elif selected_variable == "rack":
+                    if game.rack_counter - 1 > 0:
+                        game.rack_counter -= 1
+                        if off:
+                            display_clear(menu_rack_counter=True)
+                            display_text(str(game.rack_counter), 64, 40, 1)
+                        else:
+                            display_clear(menu_rack_counter=True)
+                elif selected_variable == "mute":
+                    if state_machine.speaker_muted:
+                        state_machine.speaker_muted = False
+                    else:
+                        state_machine.speaker_muted = True
+                    if off:
+                        display_clear(menu_mute_bool=True)
+                        if state_machine.speaker_muted:
+                            display_text(str("Yes"), 64, 56, 1)
+                        else:
+                            display_text(str("No"), 64, 56, 1)
+                    else:
+                        display_clear(menu_mute_bool=True)
+                inactivity_check = utime.time()
+
+            if miss_button.value():
+                miss_button_pressed()
+                if selected_variable == "inning":
+                    display_text(str(int(game.inning_counter)), 80, 24, 1)
+                elif selected_variable == "rack":
+                    display_text(str(game.rack_counter), 64, 40, 1)
+                elif selected_variable == "mute":
+                    if state_machine.speaker_muted:
+                        display_text(str("Yes"), 64, 56, 1)
+                    else:
+                        display_text(str("No"), 64, 56, 1)
+                list_traverser += 1
+                selected_variable = selection_list[list_traverser]
+                print(selected_variable)
+                if selected_variable == None:
+                    if game.rack_counter != rack_counter_before_mode:
+                        game.extension_available = True
+                        game.extension_used = False
+                        game.break_shot = True
+                    display_clear(everything=True)
+                    idle_mode()
+                    return
+                else:
+                    display_clear(menu_selector=True)
+                    if selected_variable == "inning":
+                        OLED.rect(8,24,8,8,OLED.white, True) #selector location
+                    elif selected_variable == "rack":
+                        OLED.rect(8,40,8,8,OLED.white, True) #selector location
+                    elif selected_variable == "mute":
+                        OLED.rect(8,56,8,8,OLED.white, True) #selector location
+                    OLED.show()
 
 # This will send the wave file "beep_3_processed.wav" to the MAX98357A
 def shot_clock_beep():
@@ -524,6 +595,6 @@ while True:
     if miss_button.value():
         miss_button_pressed()
         if not game.selected_profile == "Timeouts Mode":
-            update_counters()
+            idle_menu()
 
     utime.sleep(0.01)  # Short delay to prevent busy-waiting

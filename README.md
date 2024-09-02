@@ -55,6 +55,24 @@ deps = 'build-essentials', 'gcc', 'libffi-dev', 'pkg-config'
 #6. 'make'
 
 #Things to work on later
-#using audio files instead of generating tones using MAX98357A
 #ultimate pool format
 #Need to track extensions a little better, for even and odd inning numbers so each side gets 1 extension per rack
+
+
+#box improvements
+#remove bottom speaker
+#bring all threaded insert holes in a little bit
+#securing the TP4058
+    #post/dowels/guides (on either side of usb-c connector)
+    #current tray works perfectly with two small dabs of hot melt, incredible adhesion
+#mounting points for the MAX98357A 
+    #where the old one was (bottom)
+    #just clear/behind of the right button (facing the front panel)
+#changing internals
+    #pico might be best on the back panel
+    #battery could move to the bottom of the enclosure
+        #enclosure might be able to shrink to 3"x3"x3"
+        #might not work because the battery orientation would be difficult to install or remove
+#faceplate idea
+    #tilt the OLED module up just a few degrees
+
