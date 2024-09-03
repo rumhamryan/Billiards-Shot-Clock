@@ -139,8 +139,22 @@ text_size = 8
 # OLED.show()
 # time.sleep(10)
 
-OLED.fill(OLED.black)
+OLED.text_scaled("Menu", 24, 2, 2)
+OLED.line(23,18,88,18,OLED.white) #underline "Menu"
+OLED.line(23,19,88,19,OLED.white) #make it bold
+# OLED.text_scaled(f"Inning:44", 24, 40, 1)
+OLED.rect(8,40,8,8,OLED.white,True) #menu cursor
+# OLED.text_scaled(f"Rack:44", 24, 40, 1)
+OLED.text_scaled("Mute:False", 24, 40, 1)
+
+position_1_x, position_1_y = 24, 24
+position_2_x, position_2_y = 24, 40
+position_3_x, position_3_y = 24, 56
+
+
+OLED.rect(64, 40, 40, 8,OLED.white,False)
+# OLED.fill(OLED.black)
 OLED.show()
 # OLED.fill(0x0000) 
-# time.sleep(1)
-# OLED.fill(0xffff)
+time.sleep(10)
+OLED.fill(0xffff)
