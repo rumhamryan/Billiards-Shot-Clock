@@ -44,6 +44,9 @@ miss_button.irq(trigger=Pin.IRQ_FALLING, handler=debounce_handler)
 class State_Machine:
     """
     Class to manage the state of the device during the game.
+
+    Behavior:
+        - Tracks and updates various game states such as speaker muting, profile selection, shot clock, and game status.
     """
     def __init__(self, speaker_muted = False, profile_selection = True, shot_clock_idle = False, countdown_in_progress = False, countdown_complete = False, game_on = False):
         """
@@ -56,6 +59,9 @@ class State_Machine:
             countdown_in_progress (bool): Indicates if a countdown is in progress.
             countdown_complete (bool): Indicates if the countdown is complete.
             game_on (bool): Indicates if a game is ongoing.
+
+        Behavior:
+            - Initializes state variables to manage different phases of the game.
         """
         self.speaker_muted: bool = speaker_muted
         self.profile_selection: bool = profile_selection
@@ -73,6 +79,10 @@ class State_Machine:
             shot_clock_idle (bool): Set to True if shot clock idle state should be active.
             countdown_in_progress (bool): Set to True if countdown in progress state should be active.
             countdown_complete (bool): Set to True if countdown complete state should be active.
+
+        Behavior:
+            - Updates internal state variables to reflect the current game phase.
+            - Transitions between different states such as profile selection, shot clock idle, countdown, and menu navigation.
         """
         if profile_selection:
             self.profile_selection = True
@@ -107,6 +117,10 @@ class State_Machine:
 class Game_Stats:
     """
     Class to track and manage game statistics and settings.
+
+    Behavior:
+        - Stores and manages various game-related statistics such as countdown timers, player status, and game profiles.
+        - Facilitates updating and retrieving game state information during play.
     """
     def __init__(self,profile_based_countdown = 0, countdown = 0, extension_duration = 0, extension_available = True, extension_used = False, player_1_shooting=True, player_1_extension_available=True, player_2_shooting=False, player_2_extension_available=True, inning_counter= 1.0, rack_counter = 1, break_shot = True, speaker_5_count = 4,
                  game_profiles = {"APA": {"timer_duration": 20, "extension_duration": 25}, 
@@ -134,6 +148,10 @@ class Game_Stats:
             game_profiles (dict): Dictionary of game profiles and their settings.
             selected_profile (str): The currently selected game profile.
             timeouts_only (bool): Indicates if the game is in timeouts mode.
+
+        Behavior:
+            - Initializes game statistics and settings based on the provided arguments.
+            - Manages different aspects of game state, including player actions and countdown timers.
         """
         self.profile_based_countdown: int = profile_based_countdown
         self.countdown: int = countdown
@@ -186,7 +204,10 @@ def up_button_pressed():
 def down_button_pressed():
     """
     Handles the action when the down button is pressed.
-    Waits for the button to be released before proceeding.
+
+    Behavior:
+        - Waits until the down button is released before proceeding.
+        - Ensures that the action tied to the down button occurs only once per press.
     """
     while down_button.value():
         pass # Wait for button release
@@ -195,7 +216,10 @@ def down_button_pressed():
 def miss_button_pressed():
     """
     Handles the action when the miss button is pressed.
-    Waits for the button to be released before proceeding.
+
+    Behavior:
+        - Waits until the miss button is released before proceeding.
+        - Ensures that the action tied to the miss button occurs only once per press.
     """
     while miss_button.value():
         pass  # Wait for button release
@@ -210,6 +234,9 @@ def process_timer_duration(duration):
 
     Returns:
         str: The processed duration as a string, with a leading zero if necessary.
+
+    Behavior:
+        - Converts an integer duration to a string with leading zeros for display purposes.
     """
     processed_integer = duration
     if processed_integer < 10:
@@ -226,6 +253,12 @@ def display_text(payload, x_coordinates, y_coordinates, font_size, send_payload=
         x_coordinates (int): The x-coordinate on the screen.
         y_coordinates (int): The y-coordinate on the screen.
         font_size (int): The size of the font to be used.
+        send_payload (bool, optional): If True, updates the OLED display to show the text. Defaults to True.
+
+    Behavior:
+        - Renders text on the OLED screen at the specified location with the specified font size.
+        - Adjusts text positioning and font size for certain conditions, like when "Timeouts Mode" is selected.
+        - If send_payload is False, withholds the `OLED.show()` command, allows stringing repeated calls together.
     """
     if payload == "Timeouts Mode" and state_machine.profile_selection:
         x_coordinates = 0
@@ -255,6 +288,7 @@ def display_shape(payload, x, y, width, height, send_payload=True):
         - If payload is "line", a line is drawn from (x, y) to (width, height).
         - If payload is "rect", a filled rectangle is drawn at (x, y) with the specified width and height.
         - If send_payload is True, the OLED display is updated to reflect the changes.
+        - If send_payload is False, withholds the `OLED.show()` command, allows stringing repeated calls together.
     """
     if payload == "line":
         OLED.line(x,y,width,height,OLED.white)
@@ -279,6 +313,11 @@ def display_clear(shot_clock_digit_1=False, shot_clock_digit_2=False, profile_se
         menu_rack_counter (bool): Clear the menu rack counter area.
         menu_mute_bool (bool): Clear the menu mute option area.
         everything (bool): Clear the entire screen.
+        send_payload (bool): If True, updates the OLED display after clearing. Defaults to True.
+
+    Behavior:
+        - Clears specified sections of the OLED display, based on the provided arguments.
+        - If send_payload is False, withholds the `OLED.show()` command, allows stringing repeated calls together.
     """
     x, y, width, height = 0, 0, 0, 0
     
@@ -313,6 +352,11 @@ def idle_mode():
     """
     Updates the display during idle mode, showing the current inning, rack, and countdown timer.
     This function also sets the game state to idle.
+
+    Behavior:
+        - Displays the inning, rack, and countdown timer on the OLED screen.
+        - Adjusts the game countdown based on the game mode (timeouts or standard).
+        - Updates the state machine to reflect the shot clock idle state.
     """
     if game.timeouts_only:
         game.countdown = game.profile_based_countdown
@@ -336,6 +380,11 @@ def shot_clock():
     """
     Runs the countdown timer based on the selected game profile, updating the display at each second.
     This function also handles shot clock expiration and player actions such as using an extension or ending the turn.
+
+    Behavior:
+        - Manages the countdown timer, updating the display and handling end-of-timer events.
+        - Handles player actions such as making shots, using extensions, or ending turns.
+        - Updates game state and manages transitions between shot clock, idle, and game over states.
     """
     state_machine.update_state(countdown_in_progress=True)
     countdown_checker = utime.ticks_ms()
@@ -464,6 +513,10 @@ def shot_clock():
 def select_game_profile():
     """
     Allows the user to select a game profile. Displays the list of profiles and handles user input to make a selection.
+
+    Behavior:
+        - Displays available game profiles and allows the user to cycle through them using buttons.
+        - Updates the game state based on the selected profile and transitions to idle mode.
     """
     global interrupt_registered
     inactivity_check = utime.ticks_ms()
@@ -527,6 +580,11 @@ def select_game_profile():
 def menu():
     """
     Opens a menu allowing the user to edit game settings such as inning counter, rack counter, and speaker mute status.
+
+    Behavior:
+        - Provides a menu interface for the user to adjust game settings.
+        - Allows cycling through options and modifying game settings, reflecting changes on the OLED display.
+        - Returns to shot clock mode after settings are adjusted.
     """
     if state_machine.shot_clock_idle:
         state_machine.update_state(menu=True)
@@ -688,6 +746,10 @@ def menu():
 def shot_clock_beep():
     """
     Sends an audio beep signal to the MAX98357A amplifier, indicating shot clock status.
+
+    Behavior:
+        - Plays an audio beep through the MAX98357A amplifier to signal the shot clock status.
+        - The beep is played from a WAV file loaded from the filesystem.
     """
     # Initialize I2S
     audio_out = I2S(

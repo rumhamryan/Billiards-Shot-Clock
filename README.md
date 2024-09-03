@@ -1,6 +1,17 @@
 Billiards Shot Clock
 This project is for a Raspberry Pi Pico device that can be used for timing all things billiards.
-Peripherals are an OLED screen, 4 buttons, an audio ampmlifier with 2 speakers, and a waveshare I2C battery hat.
+
+Materials:
+- (1) OLED Module, Pico_OLED_242
+- (1) MAX98357A DAC + 3W Amplifier, I2S
+- (1) TP4056, N/A
+- (2) 16mm Momentary Switch
+- (2) 12mm Momentary Swtich
+- (1) 20mm SPST Rocker Switch
+- (1) 18650 Battery + Holder
+- (1) Custom Enclosure
+
+
 
 
 Peripheral PINOUT
@@ -60,7 +71,8 @@ deps = 'build-essentials', 'gcc', 'libffi-dev', 'pkg-config'
 
 #Things to work on later
 #ultimate pool format
-#Need to track extensions a little better, for even and odd inning numbers so each side gets 1 extension per rack
+#Average of one rack: time between shots & make/miss ratio
+#fix menu so that it scrolls and uses the up/down buttons to scroll through the list
 
 
 #box improvements
