@@ -49,25 +49,25 @@ miss_button.irq(trigger=Pin.IRQ_RISING, handler=handle_miss)
 # Main loop
 while True:
     if interrupt_registered['make']:
-        time.sleep_ms(150)  # Debounce delay
+        time.sleep(.15)  # Debounce delay
         while make_button.value() == 1:
             pass  # Wait for button release
         interrupt_registered['make'] = False  # Re-enable interrupt registration
 
     if interrupt_registered['up']:
-        time.sleep_ms(150)  # Debounce delay
+        time.sleep(.15)  # Debounce delay
         while up_button.value() == 1:
             pass  # Wait for button release
         interrupt_registered['up'] = False  # Re-enable interrupt registration
 
     if interrupt_registered['down']:
-        time.sleep_ms(150)  # Debounce delay
+        time.sleep(.15)  # Debounce delay
         while down_button.value() == 1:
             pass  # Wait for button release
         interrupt_registered['down'] = False  # Re-enable interrupt registration
 
     if interrupt_registered['miss']:
-        time.sleep_ms(150)  # Debounce delay
+        time.sleep(.15)  # Debounce delay
         while miss_button.value() == 1:
             pass  # Wait for button release
         interrupt_registered['miss'] = False  # Re-enable interrupt registration

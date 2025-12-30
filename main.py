@@ -3,11 +3,42 @@ import lib.Pico_OLED_242 as Pico_OLED_242 # type: ignore
 import _thread # type: ignore
 import utime # type: ignore
 
+# --- Constants ---
+# Pin Definitions
+MAKE_PIN = 16
+UP_PIN = 17
+DOWN_PIN = 18
+MISS_PIN = 19
+
+# Audio Settings
+I2S_ID = 0
+I2S_SCK = Pin(11)
+I2S_WS = Pin(12)
+I2S_SD = Pin(10)
+I2S_RATE = 48000
+I2S_BITS = 16
+
+# OLED Regions (x, y, width, height)
+DISPLAY_REGIONS = {
+    "everything": (0, 0, 128, 64),
+    "profile_selection": (0, 20, 128, 44),
+    "inning_counter": (55, 55, 17, 9),
+    "rack_counter": (113, 57, 14, 8),
+    "shot_clock_full": (0, 0, 125, 56),
+    "shot_clock_digit_1": (0, 0, 62, 56),
+    "shot_clock_digit_2": (62, 0, 66, 56),
+    "menu_selector": (8, 24, 8, 64),
+    "menu_items": (24, 24, 80, 40),
+    "menu_inning_counter": (80, 40, 17, 8),
+    "menu_rack_counter": (64, 40, 17, 8),
+    "menu_mute_bool": (64, 40, 40, 8),
+}
+
 # Set up the GPIO pins as input with pull-down resistors
-make_button = Pin(16, Pin.IN, Pin.PULL_DOWN)
-up_button = Pin(17, Pin.IN, Pin.PULL_DOWN)
-down_button = Pin(18, Pin.IN, Pin.PULL_DOWN)
-miss_button = Pin(19, Pin.IN, Pin.PULL_DOWN)
+make_button = Pin(MAKE_PIN, Pin.IN, Pin.PULL_DOWN)
+up_button = Pin(UP_PIN, Pin.IN, Pin.PULL_DOWN)
+down_button = Pin(DOWN_PIN, Pin.IN, Pin.PULL_DOWN)
+miss_button = Pin(MISS_PIN, Pin.IN, Pin.PULL_DOWN)
 
 # Define debounce delay in milliseconds
 DEBOUNCE_DELAY = 200
@@ -46,71 +77,52 @@ class State_Machine:
     Class to manage the state of the device during the game.
 
     Behavior:
-        - Tracks and updates various game states such as profile selection, shot clock, and game status.
+        - Tracks and updates the current game state such as profile selection, shot clock, and game status.
     """
-    def __init__(self, profile_selection = True, shot_clock_idle = False, countdown_in_progress = False, countdown_complete = False, game_on = False):
+    PROFILE_SELECTION = "profile_selection"
+    SHOT_CLOCK_IDLE = "shot_clock_idle"
+    COUNTDOWN_IN_PROGRESS = "countdown_in_progress"
+    COUNTDOWN_COMPLETE = "countdown_complete"
+    MENU = "menu"
+
+    def __init__(self, initial_state=PROFILE_SELECTION):
         """
-        Initializes the state machine with default values or provided states.
+        Initializes the state machine with an initial state.
 
         Args:
-            profile_selection (bool): Indicates if a profile is being selected.
-            shot_clock_idle (bool): Indicates if the shot clock is idle.
-            countdown_in_progress (bool): Indicates if a countdown is in progress.
-            countdown_complete (bool): Indicates if the countdown is complete.
-            game_on (bool): Indicates if a game is ongoing.
-
-        Behavior:
-            - Initializes state variables to manage different phases of the game.
+            initial_state (str): The starting state of the machine.
         """
-        self.profile_selection: bool = profile_selection
-        self.shot_clock_idle: bool = shot_clock_idle
-        self.countdown_in_progress: bool = countdown_in_progress
-        self.countdown_complete: bool = countdown_complete
-        self.game_on: bool = game_on
+        self.state = initial_state
+        self.game_on = False
 
-    def update_state(self, profile_selection = False, shot_clock_idle = False, countdown_in_progress = False, countdown_complete = False, menu = False):
+    def update_state(self, new_state):
         """
-        Updates the state of the machine based on the provided arguments.
+        Updates the current state of the machine.
 
         Args:
-            profile_selection (bool): Set to True if profile selection state should be active.
-            shot_clock_idle (bool): Set to True if shot clock idle state should be active.
-            countdown_in_progress (bool): Set to True if countdown in progress state should be active.
-            countdown_complete (bool): Set to True if countdown complete state should be active.
-
-        Behavior:
-            - Updates internal state variables to reflect the current game phase.
-            - Transitions between different states such as profile selection, shot clock idle, countdown, and menu navigation.
+            new_state (str): The state to transition to.
         """
-        if profile_selection:
-            self.profile_selection = True
-            self.shot_clock_idle = False
-            self.countdown_in_progress = False
-            self.countdown_complete = False
-            self.menu = False
-        elif shot_clock_idle:
-            self.profile_selection = False
-            self.shot_clock_idle = True
-            self.countdown_in_progress = False
-            self.countdown_complete = False
-            self.menu = False
-        elif countdown_in_progress:
-            self.profile_selection = False
-            self.shot_clock_idle = False
-            self.countdown_in_progress = True
-            self.countdown_complete = False
-            self.menu = False
-        elif countdown_complete:
-            self.profile_selection = False
-            self.shot_clock_idle = False
-            self.countdown_in_progress = False
-            self.countdown_complete = True
-        elif menu:
-            self.profile_selection = False
-            self.shot_clock_idle = False
-            self.countdown_in_progress = False
-            self.countdown_complete = False
-            self.menu = True
+        self.state = new_state
+
+    @property
+    def profile_selection(self):
+        return self.state == self.PROFILE_SELECTION
+
+    @property
+    def shot_clock_idle(self):
+        return self.state == self.SHOT_CLOCK_IDLE
+
+    @property
+    def countdown_in_progress(self):
+        return self.state == self.COUNTDOWN_IN_PROGRESS
+
+    @property
+    def countdown_complete(self):
+        return self.state == self.COUNTDOWN_COMPLETE
+
+    @property
+    def menu(self):
+        return self.state == self.MENU
 
 class Game_Stats:
     """
@@ -212,7 +224,7 @@ class Game_Stats:
         # Display the menu items
         if send_payload:
             if clear_before_payload:
-                display_clear(menu_items=True)
+                display_clear("menu_items")
             display_text(f"{self.current_menu_selection[0]}:{self.current_menu_values[0]}", 24, 24, 1, False)
             display_text(f"{self.current_menu_selection[1]}:{self.current_menu_values[1]}", 24, 40, 1, False)
             display_text(f"{self.current_menu_selection[2]}:{self.current_menu_values[2]}", 24, 56, 1, False)
@@ -223,55 +235,15 @@ state_machine = State_Machine()
 game = Game_Stats()
 OLED = Pico_OLED_242.OLED_2inch42()
 
-def make_button_pressed():
+def wait_for_release(pin):
     """
-    Handles the action when the make button is pressed.
-
-    Behavior:
-        - Waits until the make button is released before proceeding.
-        - This prevents any action from being taken until the button is fully released.
+    Waits until the specified button is released.
+    
+    Args:
+        pin (machine.Pin): The pin object associated with the button.
     """
-
-    while make_button.value():
-        pass  # Wait for button release
-    # print("Make button pressed")
-
-def up_button_pressed():
-    """
-    Handles the action when the up button is pressed.
-
-    Behavior:
-        - Waits until the up button is released before proceeding.
-        - Ensures that the action tied to the up button occurs only once per press.
-    """
-
-    while up_button.value():
-        pass  # Wait for button release
-    # print("Up button pressed")
-
-def down_button_pressed():
-    """
-    Handles the action when the down button is pressed.
-
-    Behavior:
-        - Waits until the down button is released before proceeding.
-        - Ensures that the action tied to the down button occurs only once per press.
-    """
-    while down_button.value():
-        pass  # Wait for button release
-    # print("Down button pressed")
-
-def miss_button_pressed():
-    """
-    Handles the action when the miss button is pressed.
-
-    Behavior:
-        - Waits until the miss button is released before proceeding.
-        - Ensures that the action tied to the miss button occurs only once per press.
-    """
-    while miss_button.value():
-        pass  # Wait for button release
-    # print("Miss button pressed")
+    while pin.value():
+        pass
 
 def process_timer_duration(duration):
     """
@@ -346,55 +318,24 @@ def display_shape(payload, x, y, width, height, send_payload=True):
     if send_payload:
         OLED.show()
 
-def display_clear(shot_clock_digit_1=False, shot_clock_digit_2=False, profile_selection=False, inning_counter=False, rack_counter=False, menu_selector=False, menu_items=False, menu_inning_counter=False, menu_rack_counter=False, menu_mute_bool=False, everything=False, send_payload=True):
+def display_clear(*regions, send_payload=True):
     """
-    Clears sections or the entire OLED display by turning off pixels in specified areas.
+    Clears specified sections or the entire OLED display by turning off pixels.
 
     Args:
-        shot_clock_digit_1 (bool): Clear the first shot clock digit section.
-        shot_clock_digit_2 (bool): Clear the second shot clock digit section.
-        profile_selection (bool): Clear the profile selection area.
-        inning_counter (bool): Clear the inning counter area.
-        rack_counter (bool): Clear the rack counter area.
-        menu_selector (bool): Clear the menu selector area.
-        menu_inning_counter (bool): Clear the menu inning counter area.
-        menu_rack_counter (bool): Clear the menu rack counter area.
-        menu_mute_bool (bool): Clear the menu mute option area.
-        everything (bool): Clear the entire screen.
+        *regions (str): Variable number of region names to clear (defined in DISPLAY_REGIONS).
         send_payload (bool): If True, updates the OLED display after clearing. Defaults to True.
 
     Behavior:
-        - Clears specified sections of the OLED display, based on the provided arguments.
-        - If send_payload is False, withholds the `OLED.show()` command, allows stringing repeated calls together.
+        - Clears the specified sections of the OLED display based on the region names provided.
+        - If no regions are specified, it does nothing.
+        - If send_payload is True, the OLED display is updated.
     """
-    x, y, width, height = 0, 0, 0, 0
-    
-    if everything:
-        x, y, width, height = 0, 0, 128, 64
-    elif profile_selection:
-        x, y, width, height = 0, 20, 128, 44
-    elif inning_counter:
-        x, y, width, height = 55, 55, 17, 9
-    elif rack_counter:
-        x, y, width, height = 113, 57, 14, 8
-    elif shot_clock_digit_1 and shot_clock_digit_2:
-        x, y, width, height = 0, 0, 125, 56
-    elif shot_clock_digit_1:
-        x, y, width, height = 0, 0, 62, 56
-    elif shot_clock_digit_2:
-        x, y, width, height = 62, 0, 66, 56
-    elif menu_selector:
-        x, y, width, height = 8, 24, 8, 64
-    elif menu_items:
-        x, y, width, height = 24, 24, 80, 40
-    elif menu_inning_counter:
-        x, y, width, height = 80, 40, 17, 8
-    elif menu_rack_counter:
-        x, y, width, height = 64, 40, 17, 8
-    elif menu_mute_bool:
-        x, y, width, height = 64, 40, 40, 8
+    for region in regions:
+        if region in DISPLAY_REGIONS:
+            x, y, width, height = DISPLAY_REGIONS[region]
+            OLED.rect(x, y, width, height, OLED.black, True)
 
-    OLED.rect(x, y, width, height, OLED.black, True)
     if send_payload:
         OLED.show()
 
@@ -413,7 +354,7 @@ def idle_mode():
         display_text(process_timer_duration(game.countdown), 0, 0, 8, False)
         display_text("Timeouts Mode", 12, 57, 1)
     else:
-        state_machine.update_state(shot_clock_idle=True)
+        state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
         game.speaker_5_count = 4
         display_text(f"Inning:{int(game.inning_counter)}", 0, 57, 1, False)
         display_text(f"Rack:{int(game.rack_counter)}", 72, 57, 1)
@@ -424,7 +365,7 @@ def idle_mode():
             game.countdown = game.profile_based_countdown
         display_text(process_timer_duration(game.countdown), 0, 0, 8)
 
-    state_machine.update_state(shot_clock_idle=True)
+    state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
 
 def shot_clock():
     """
@@ -436,7 +377,7 @@ def shot_clock():
         - Handles player actions such as making shots, using extensions, or ending turns.
         - Updates game state and manages transitions between shot clock, idle, and game over states.
     """
-    state_machine.update_state(countdown_in_progress=True)
+    state_machine.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
     countdown_checker = utime.ticks_ms()
 
     if game.inning_counter % 1 == 0:
@@ -467,22 +408,22 @@ def shot_clock():
 
             # Clear and update the display as needed
             if current_tens != new_tens and current_units != new_units:
-                display_clear(shot_clock_digit_1=True, shot_clock_digit_2=True)
+                display_clear("shot_clock_digit_1", "shot_clock_digit_2")
                 display_text(process_timer_duration(game.countdown), 0, 0, 8)
 
             elif current_tens != new_tens:  # Tens digit changed
-                display_clear(shot_clock_digit_1=True)
+                display_clear("shot_clock_digit_1")
                 display_text(str(new_tens), 0, 0, 8)
 
             elif current_units != new_units:  # Units digit changed
-                display_clear(shot_clock_digit_2=True)
+                display_clear("shot_clock_digit_2")
                 display_text(str(new_units), 60, 0, 8)
 
             countdown_checker = utime.ticks_ms()
 
             if game.countdown == 0:
                 off = True
-                state_machine.update_state(countdown_complete=True)
+                state_machine.update_state(State_Machine.COUNTDOWN_COMPLETE)
                 if game.selected_profile == "APA":
                     game.extension_available = True
                     game.extension_used = False
@@ -492,7 +433,7 @@ def shot_clock():
                     if utime.ticks_diff(utime.ticks_ms(), countdown_checker) > 330:
                         countdown_checker = utime.ticks_ms()
                         if off:
-                            display_clear(shot_clock_digit_1=True, shot_clock_digit_2=True)
+                            display_clear("shot_clock_digit_1", "shot_clock_digit_2")
                             off = False
                         else:
                             display_text(process_timer_duration(game.countdown), 0, 0, 8)
@@ -500,23 +441,23 @@ def shot_clock():
 
                     if make_button.value() or miss_button.value():
                         if make_button.value():
-                            make_button_pressed()
+                            wait_for_release(make_button)
                         if miss_button.value():
-                            miss_button_pressed()
+                            wait_for_release(miss_button)
                             game.inning_counter +=0.5
                             
                         game.countdown = game.profile_based_countdown
-                        display_clear(shot_clock_digit_1=True, shot_clock_digit_2=True)
+                        display_clear("shot_clock_digit_1", "shot_clock_digit_2")
                         return idle_mode()
         
         if make_button.value():
-            make_button_pressed()
+            wait_for_release(make_button)
             game.countdown = game.profile_based_countdown
             if game.selected_profile == "APA":
                 game.extension_available = True
                 game.extension_used = False
-            state_machine.update_state(shot_clock_idle=True)
-            display_clear(shot_clock_digit_1=True, shot_clock_digit_2=True)
+            state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
+            display_clear("shot_clock_digit_1", "shot_clock_digit_2")
             countdown_check = None
             countdown_checker = None
             if game.break_shot:
@@ -524,36 +465,36 @@ def shot_clock():
             return idle_mode()
         
         if up_button.value():
-            up_button_pressed()
+            wait_for_release(up_button)
             if game.selected_profile == "WNT" or game.selected_profile == "BCA":
                 if game.player_1_shooting and game.player_1_extension_available:
                     game.player_1_extension_available = False
                     game.countdown += game.extension_duration
                     game.speaker_5_count = 4
-                    display_clear(shot_clock_digit_1=True, shot_clock_digit_2=True)
+                    display_clear("shot_clock_digit_1", "shot_clock_digit_2")
                     display_text(process_timer_duration(game.countdown), 0, 0, 8)
                 elif game.player_2_shooting and game.player_2_extension_available:
                     game.player_2_extension_available = False
                     game.countdown += game.extension_duration
                     game.speaker_5_count = 4
-                    display_clear(shot_clock_digit_1=True, shot_clock_digit_2=True)
+                    display_clear("shot_clock_digit_1", "shot_clock_digit_2")
                     display_text(process_timer_duration(game.countdown), 0, 0, 8)
             else:
                 game.extension_used = True
                 game.extension_available = False
                 game.countdown += game.extension_duration
                 game.speaker_5_count = 4
-                display_clear(shot_clock_digit_1=True, shot_clock_digit_2=True)
+                display_clear("shot_clock_digit_1", "shot_clock_digit_2")
                 display_text(process_timer_duration(game.countdown), 0, 0, 8)
 
         if miss_button.value():
-            miss_button_pressed()
+            wait_for_release(miss_button)
             game.countdown = game.profile_based_countdown
             game.inning_counter +=0.5
-            state_machine.update_state(shot_clock_idle=True)
-            display_clear(shot_clock_digit_1=True, shot_clock_digit_2=True)
+            state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
+            display_clear("shot_clock_digit_1", "shot_clock_digit_2")
             if game.inning_counter - 0.5 != int(game.inning_counter):
-                display_clear(inning_counter=True)
+                display_clear("inning_counter")
             countdown_check = None
             countdown_checker = None
             if game.break_shot:
@@ -580,7 +521,7 @@ def select_game_profile():
             if utime.ticks_diff(utime.ticks_ms(), countdown_checker) > 500:
                 countdown_checker = utime.ticks_ms()
                 if off:
-                    display_clear(profile_selection=True)
+                    display_clear("profile_selection")
                     off = False
                 else:
                     display_text(str((profile_list[list_traverser])), 25, 30, 3)
@@ -589,11 +530,11 @@ def select_game_profile():
             display_text(str((profile_list[list_traverser])), 25, 30, 3)
 
         if make_button.value():
-            make_button_pressed()
+            wait_for_release(make_button)
             if state_machine.profile_selection:
-                state_machine.profile_selection = False
+                # Transitioning to SHOT_CLOCK_IDLE will happen in idle_mode()
                 game.countdown = game.profile_based_countdown
-                display_clear(everything=True)
+                display_clear("everything")
             game.profile_based_countdown = game.game_profiles[profile_list[list_traverser]]["timer_duration"]
             game.extension_duration = game.game_profiles[profile_list[list_traverser]]["extension_duration"]
             game.selected_profile = profile_list[list_traverser]
@@ -604,24 +545,24 @@ def select_game_profile():
             return idle_mode()
         
         if up_button.value():
-            up_button_pressed()
+            wait_for_release(up_button)
             if list_traverser == profile_list_length:
                 list_traverser = 0
             else:
                 list_traverser += 1
-            display_clear(profile_selection=True)
+            display_clear("profile_selection")
             if off:
                 display_text(str(profile_list[list_traverser]), 25, 30, 3)
 
             inactivity_check = utime.ticks_ms()
 
         if down_button.value():
-            down_button_pressed()
+            wait_for_release(down_button)
             if list_traverser == 0:
                 list_traverser = profile_list_length
             else:
                 list_traverser -= 1
-            display_clear(profile_selection=True)
+            display_clear("profile_selection")
             if off:
                 display_text(str(profile_list[list_traverser]), 25, 30, 3)
 
@@ -641,8 +582,8 @@ def game_menu():
         - Cursor will blink on the OLED display to indicate value is being edited.
     """
     if state_machine.shot_clock_idle:
-        state_machine.update_state(menu=True)
-        display_clear(everything=True)
+        state_machine.update_state(State_Machine.MENU)
+        display_clear("everything")
         off = False
         game.current_menu_index = game.menu_items.index("Rack") # Ensure current_menu_index is set to "Rack" before entering the menu
         inning_counter_before_mod = game.inning_counter
@@ -657,7 +598,7 @@ def game_menu():
         while True:
 
             if make_button.value():
-                make_button_pressed()
+                wait_for_release(make_button)
                 inning_counter_before_mod = game.inning_counter
                 rack_counter_before_mode = game.rack_counter
                 mute_bool_before_mod = game.speaker_muted
@@ -665,7 +606,7 @@ def game_menu():
                     if utime.ticks_diff(utime.ticks_ms(), countdown_checker) > 500:
                         countdown_checker = utime.ticks_ms()
                         if off:
-                            display_clear(menu_selector=True)
+                            display_clear("menu_selector")
                             off = False
                         else:
                             display_shape("rect",8,40,8,8) #menu cursor)
@@ -673,22 +614,22 @@ def game_menu():
 
                     if make_button.value():
                         display_shape("rect",8,40,8,8) #menu cursor)
-                        make_button_pressed()
+                        wait_for_release(make_button)
                         game.menu_values = [game.rack_counter, game.speaker_muted, int(game.inning_counter)]
                         break
 
                     if up_button.value():
-                        up_button_pressed()
+                        wait_for_release(up_button)
                         if game.current_menu_selection[1] == "Inning":
-                            display_clear(menu_inning_counter=True)
+                            display_clear("menu_inning_counter")
                             game.inning_counter += 1
                             display_text(str(int(game.inning_counter)), 80,40,1)
                         elif game.current_menu_selection[1] == "Rack":
-                            display_clear(menu_rack_counter=True)
+                            display_clear("menu_rack_counter")
                             game.rack_counter += 1
                             display_text(game.rack_counter, 64,40,1)
                         elif game.current_menu_selection[1] == "Mute":
-                            display_clear(menu_mute_bool=True)
+                            display_clear("menu_mute_bool")
                             if game.speaker_muted:
                                 game.speaker_muted = False
                             else:
@@ -696,19 +637,19 @@ def game_menu():
                             display_text(game.speaker_muted, 64,40,1)
 
                     if down_button.value():
-                        down_button_pressed()
+                        wait_for_release(down_button)
                         if game.current_menu_selection[1] == "Inning":
                             if game.inning_counter > 1:
-                                display_clear(menu_inning_counter=True)
+                                display_clear("menu_inning_counter")
                                 game.inning_counter -= 1
                             display_text(str(int(game.inning_counter)), 80,40,1)
                         elif game.current_menu_selection[1] == "Rack":
                             if game.rack_counter > 1:
-                                display_clear(menu_rack_counter=True)
+                                display_clear("menu_rack_counter")
                                 game.rack_counter -= 1
                             display_text(game.rack_counter, 64,40,1)
                         elif game.current_menu_selection[1] == "Mute":
-                            display_clear(menu_mute_bool=True)
+                            display_clear("menu_mute_bool")
                             if game.speaker_muted:
                                 game.speaker_muted = False
                             else:
@@ -718,37 +659,37 @@ def game_menu():
                     if miss_button.value():
                         display_shape("rect",8,40,8,8) #menu cursor)
                         game.menu_values = [rack_counter_before_mode, mute_bool_before_mod, int(inning_counter_before_mod)]
-                        miss_button_pressed()
+                        wait_for_release(miss_button)
                         if game.current_menu_selection[1] == "Inning":
                             if game.inning_counter != inning_counter_before_mod:
-                                display_clear(menu_inning_counter=True)
+                                display_clear("menu_inning_counter")
                                 game.inning_counter = inning_counter_before_mod
                                 display_text(str(int(game.inning_counter)), 80,40,1)
                         elif game.current_menu_selection[1] == "Rack":
                             if game.rack_counter != rack_counter_before_mode:
-                                display_clear(menu_rack_counter=True)
+                                display_clear("menu_rack_counter")
                                 game.rack_counter = rack_counter_before_mode
                                 display_text(game.rack_counter, 64,40,1)
                         elif game.current_menu_selection[1] == "Mute":
                             if game.speaker_muted != mute_bool_before_mod:
-                                display_clear(menu_mute_bool=True)
+                                display_clear("menu_mute_bool")
                                 game.speaker_muted = mute_bool_before_mod
                                 display_text(game.speaker_muted, 64, 40, 1)
                         break
 
             if up_button.value():
-                up_button_pressed()
+                wait_for_release(up_button)
                 game.current_menu_index = (game.current_menu_index - 1) % len(game.menu_items)
                 game.update_menu_selection()
 
             if down_button.value():
-                down_button_pressed()
+                wait_for_release(down_button)
                 game.current_menu_index = (game.current_menu_index + 1) % len(game.menu_items)
                 game.update_menu_selection()
 
             if miss_button.value():
-                miss_button_pressed()
-                display_clear(everything=True)
+                wait_for_release(miss_button)
+                display_clear("everything")
                 if game.rack_counter != rack_counter_before_mode:
                     game.break_shot = True
                 return idle_mode()
@@ -763,15 +704,16 @@ def shot_clock_beep():
     """
     # Initialize I2S
     audio_out = I2S(
-    0,
-    sck=Pin(11),   # BCLK
-    ws=Pin(12),    # LRC
-    sd=Pin(10),     # DIN
-    mode=I2S.TX,
-    bits=16,
-    format=I2S.MONO,
-    rate=48000,    # Sample rate, should match the .wav file
-    ibuf=20000)     # Buffer size
+        I2S_ID,
+        sck=I2S_SCK,
+        ws=I2S_WS,
+        sd=I2S_SD,
+        mode=I2S.TX,
+        bits=I2S_BITS,
+        format=I2S.MONO,
+        rate=I2S_RATE,
+        ibuf=20000
+    )
     
     # Open WAV file
     wav_file = open("beep.wav", "rb")
@@ -799,19 +741,19 @@ select_game_profile()
 while True:
 
     if make_button.value():
-        make_button_pressed()
+        wait_for_release(make_button)
         shot_clock()
 
     if up_button.value():
-        up_button_pressed()
+        wait_for_release(up_button)
         idle_mode()
 
     if down_button.value():
-        down_button_pressed()
+        wait_for_release(down_button)
         idle_mode()
 
     if miss_button.value():
-        miss_button_pressed()
+        wait_for_release(miss_button)
         if not game.selected_profile == "Timeouts Mode":
             game_menu()
 
