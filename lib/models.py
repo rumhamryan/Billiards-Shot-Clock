@@ -4,6 +4,7 @@ class State_Machine:
     COUNTDOWN_IN_PROGRESS = "countdown_in_progress"
     COUNTDOWN_COMPLETE = "countdown_complete"
     MENU = "menu"
+    EDITING_VALUE = "editing_value"
 
     def __init__(self, initial_state=PROFILE_SELECTION):
         self.state = initial_state
@@ -32,6 +33,10 @@ class State_Machine:
     def menu(self):
         return self.state == self.MENU
 
+    @property
+    def editing_value(self):
+        return self.state == self.EDITING_VALUE
+
 class Game_Stats:
     def __init__(self, profile_based_countdown=0, countdown=0, extension_duration=0, 
                  extension_available=True, extension_used=False, player_1_shooting=True, 
@@ -40,7 +45,8 @@ class Game_Stats:
                  break_shot=True, speaker_muted=False, speaker_5_count=4,
                  game_profiles=None, selected_profile=None, timeouts_only=False,
                  menu_items=None, menu_values=None, current_menu_index=0,
-                 current_menu_selection=None, current_menu_values=None):
+                 current_menu_selection=None, current_menu_values=None,
+                 profile_selection_index=0, temp_setting_value=None):
         
         self.profile_based_countdown = profile_based_countdown
         self.countdown = countdown
@@ -69,6 +75,10 @@ class Game_Stats:
         self.current_menu_index = current_menu_index
         self.current_menu_selection = current_menu_selection or [None, self.menu_items[current_menu_index], None]
         self.current_menu_values = current_menu_values or [None, self.menu_values[current_menu_index], None]
+        
+        # New State Tracking Variables
+        self.profile_selection_index = profile_selection_index
+        self.temp_setting_value = temp_setting_value
 
     def update_menu_selection(self, oled, state_machine, display_clear_func, display_text_func, display_shape_func, send_payload=True, clear_before_payload=True):
         prev_index = (self.current_menu_index - 1) % len(self.menu_items)

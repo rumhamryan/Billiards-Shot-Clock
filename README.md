@@ -1,6 +1,6 @@
 # Billiards Shot Clock
 
-A high-performance, responsive shot clock for billiards (pool) designed for the Raspberry Pi Pico. This project features multiple game profiles (APA, WNT, BCA), a non-blocking asynchronous UI, and a modular architecture.
+A high-performance, responsive shot clock for billiards (pool) designed for the Raspberry Pi Pico 2. This project features multiple game profiles (APA, WNT, BCA), a non-blocking asynchronous UI, and a modular event-driven architecture.
 
 ## Hardware Requirements
 
@@ -34,16 +34,18 @@ A high-performance, responsive shot clock for billiards (pool) designed for the 
 ## Software Architecture
 
 ### Key Features
-- **Concurrent Execution**: Handled on a single thread (Core 0) using cooperative multitasking.
+- **Event-Driven Core**: Uses `uasyncio` to manage a central event loop. Logic only runs when an event (Button Press, Timer Tick) occurs, saving power and improving responsiveness.
 - **Dedicated Audio**: Audio processing is offloaded to **Core 1** via `_thread` to ensure glitch-free beeps without affecting the UI.
-- **Debounced Interrupts**: Hardware interrupts handle button presses with a 200ms software debounce.
+- **Async Interrupts**: Hardware interrupts trigger async tasks, eliminating wasteful polling loops.
 
 ### Modular Codebase
 The project is split into logical modules for better maintainability:
-- `main.py`: The main entry point and high-level game logic.
-- `lib/shot_clock_config.py`: Centralized hardware constants and OLED regions.
-- `lib/shot_clock_models.py`: State Machine and Game Statistics logic.
-- `lib/shot_clock_hw.py`: Hardware abstraction layer for Display and Audio.
+- `main.py`: The main entry point, initializing the event loop and background tasks.
+- `lib/hardware_config.py`: Centralized hardware constants (Pins, OLED regions).
+- `lib/models.py`: State Machine and Game Statistics data structures.
+- `lib/audio_display.py`: Hardware abstraction layer for rendering to OLED and playing Audio.
+- `lib/button_interrupt.py`: Handles hardware IRQs and debouncing, converting physical presses into async events.
+- `lib/button_logic.py`: Pure logic layer defining game rules and state transitions.
 
 ---
 
