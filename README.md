@@ -43,7 +43,8 @@ The project is split into logical modules for better maintainability:
 - `main.py`: The main entry point, initializing the event loop and background tasks.
 - `lib/hardware_config.py`: Centralized hardware constants (Pins, OLED regions).
 - `lib/models.py`: State Machine and Game Statistics data structures.
-- `lib/audio_display.py`: Hardware abstraction layer for rendering to OLED and playing Audio.
+- `lib/display.py`: Hardware abstraction layer for rendering to OLED.
+- `lib/audio.py`: Hardware abstraction layer for playing Audio.
 - `lib/button_interrupt.py`: Handles hardware IRQs and debouncing, converting physical presses into async events.
 - `lib/button_logic.py`: Pure logic layer defining game rules and state transitions.
 

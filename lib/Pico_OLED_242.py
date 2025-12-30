@@ -1,13 +1,9 @@
 from machine import Pin,SPI,I2C
 import framebuf
 import utime
-
-# Pin definition
-SCK  =  2
-MOSI =  3
-RST  =  4
-CS   =  5
-DC   =  6
+from lib.hardware_config import (
+    OLED_SCK_PIN, OLED_MOSI_PIN, OLED_RST_PIN, OLED_CS_PIN, OLED_DC_PIN
+)
 
 Device_SPI = 1
 Device_I2C = 0
@@ -24,15 +20,15 @@ class OLED_2inch42(framebuf.FrameBuffer):
         self.white  =  0xffff
         self.black  =  0x0000
         
-        self.cs  =  Pin(CS ,Pin.OUT)
-        self.rst =  Pin(RST,Pin.OUT)
-        self.dc  =  Pin(DC ,Pin.OUT)
+        self.cs  =  Pin(OLED_CS_PIN ,Pin.OUT)
+        self.rst =  Pin(OLED_RST_PIN,Pin.OUT)
+        self.dc  =  Pin(OLED_DC_PIN ,Pin.OUT)
         
         if(Device == Device_SPI):
             self.cs(1)
             self.spi = SPI(0)
             self.spi = SPI(0,1000_000)
-            self.spi = SPI(0,10000_000,polarity=0, phase=0,sck=Pin(SCK),mosi=Pin(MOSI),miso=None)
+            self.spi = SPI(0,10000_000,polarity=0, phase=0,sck=Pin(OLED_SCK_PIN),mosi=Pin(OLED_MOSI_PIN),miso=None)
             self.dc(1)     
         else :
             self.dc(0)
