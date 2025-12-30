@@ -1,94 +1,77 @@
-Billiards Shot Clock
-This project is for a Raspberry Pi Pico device that can be used for timing all things billiards.
+# Billiards Shot Clock
 
-Materials:
-- (1) OLED Module, Pico_OLED_242
-- (1) MAX98357A DAC + 3W Amplifier, I2S
-- (1) TP4056, N/A
-- (2) 16mm Momentary Switch
-- (2) 12mm Momentary Swtich
-- (1) 20mm SPST Rocker Switch
-- (1) 18650 Battery + Holder
-- (1) Custom Enclosure
+A high-performance, responsive shot clock for billiards (pool) designed for the Raspberry Pi Pico. This project features multiple game profiles (APA, WNT, BCA), a non-blocking asynchronous UI, and a modular architecture.
 
+## Hardware Requirements
 
+- **Microcontroller**: Raspberry Pi Pico 2
+- **Display**: 2.42" OLED (SSD1309 or similar, SPI interface)
+- **Audio**: MAX98357A I2S Amplifier
+- **Speaker**: 4Ω speaker
+- **Buttons**: 4x Momentary Push Buttons (Make, Up, Down, Miss)
+- **Power**: 3.7V LiPo Battery
+- **Charging**: TP4056 USB-C charging circuit
 
+### Wiring Diagram
 
-Peripheral PINOUT
+| Component | GPIO | Function |
+| :--- | :--- | :--- |
+| **OLED** | 2 | SPI SCK |
+| | 3 | SPI MOSI (sometimes called SDA) |
+| | 4 | Reset (RST) |
+| | 5 | Chip Select (CS) |
+| | 6 | Data/Command (DC) |
+| **Audio** | 10 | I2S DIN (SD) |
+| | 11 | I2S BCLK (SCK) |
+| | 12 | I2S LRC (WS) |
+| **Buttons** | 16 | **Make** (Start/Shot Made) |
+| | 17 | **Up** (Extension/Navigation) |
+| | 18 | **Down** (Navigation) |
+| | 19 | **Miss** (End Turn/Navigation) |
 
-OLED Display
-SCK  = GP2 (purple)
-MOSI = GP3 (grey)
-RST  = GP4 (yellow)
-CS   = GP5 (blue)
-DC   = GP6 (green)
+---
 
-Buttons (PULL_DOWN)
-button_1 = 3v3, GP16 (make button)
-button_2 = 3v3, GP17 (up button)
-button_3 = 3v3, GP18 (down button)
-button_4 = 3v3, GP19 (miss button)
+## Software Architecture
 
-MAX98357A DAC + 3W Amplifier
-DIN  = GP10
-LRC  = GP11
-BCLK = GP12
-GAIN = GND
-VIN  = 3v3
-OUT+ = 4ohm speaker +
-OUT- = 4ohm speaker -
+### Key Features
+- **Concurrent Execution**: Handled on a single thread (Core 0) using cooperative multitasking.
+- **Dedicated Audio**: Audio processing is offloaded to **Core 1** via `_thread` to ensure glitch-free beeps without affecting the UI.
+- **Debounced Interrupts**: Hardware interrupts handle button presses with a 200ms software debounce.
 
-TP4056 Li-on Charging Circuit
-OUT+ = ON/OFF Switch > VSYS
-OUT- = GND
+### Modular Codebase
+The project is split into logical modules for better maintainability:
+- `main.py`: The main entry point and high-level game logic.
+- `lib/shot_clock_config.py`: Centralized hardware constants and OLED regions.
+- `lib/shot_clock_models.py`: State Machine and Game Statistics logic.
+- `lib/shot_clock_hw.py`: Hardware abstraction layer for Display and Audio.
 
+---
 
-Use Cases:
-- APA
-- BCA
-- WNT
-- Timeouts Only
-- Ultimate Pool (pending)
-- One Rack stats (pending)
+## How to Use
 
+1. **Profile Selection**: On boot, use **Up/Down** to cycle through profiles (APA, WNT, BCA, Timeouts). Press **Make** to select.
+2. **Shot Clock**:
+   - **Make**: Stops the timer and resets it for the next shot.
+   - **Up**: Uses an extension (if available for the selected profile).
+   - **Miss**: Ends the turn and increments the inning counter.
+3. **Game Menu**: Press **Miss** while the clock is idle to access settings:
+   - Adjust Inning Counter.
+   - Adjust Rack Counter.
+   - Toggle Mute (Speaker).
 
+---
 
-#Things to add to my firmware release.
-#in the framebuf.c file
-#-add 'text_scaled' function
-#- add the const for 'text_scaled' obj
-#- update "STATIC" macro to lowercase
+## Development & Installation
 
-#Compiling my own firmware
-deps = 'build-essentials', 'gcc', 'libffi-dev', 'pkg-config'
-#0. checkout the version you want to compile
-#1. cd to project root
-#2. 'make -C mpy-cross'
-#3. cd to rp2 folder within the project, /ports/rp2
-#4. 'make submodules'
-#5. 'make clean'
-#6. 'make'
+### Prerequisites
+- [MicroPython](https://micropython.org/download/RPI_PICO/) installed on the Pico.
+- All files from the `lib/` folder must be uploaded to the Pico's `/lib` directory.
+- `beep.wav` must be uploaded to the root directory.
 
-#Things to work on later
-#ultimate pool format
-#Average of one rack: time between shots & make/miss ratio
-#fix menu so that it scrolls and uses the up/down buttons to scroll through the list
+### Installation
+1. Clone this repository.
+2. Copy all `.py` files and `lib/` directory to your Pico using Thonny or `rshell`.
+3. The Pico will run `main.py` automatically on boot.
 
-
-#box improvements
-#remove bottom speaker
-#bring all threaded insert holes in a little bit
-#securing the TP4058
-    #post/dowels/guides (on either side of usb-c connector)
-    #current tray works perfectly with two small dabs of hot melt, incredible adhesion
-#mounting points for the MAX98357A 
-    #where the old one was (bottom)
-    #just clear/behind of the right button (facing the front panel)
-#changing internals
-    #pico might be best on the back panel
-    #battery could move to the bottom of the enclosure
-        #enclosure might be able to shrink to 3"x3"x3"
-        #might not work because the battery orientation would be difficult to install or remove
-#faceplate idea
-    #tilt the OLED module up just a few degrees
-
+### Debugging
+The system prints button events and state transitions to the REPL for easy troubleshooting during assembly.
