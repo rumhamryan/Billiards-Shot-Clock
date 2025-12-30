@@ -2,6 +2,7 @@ from machine import I2S, Pin, PWM # type: ignore
 import lib.Pico_OLED_242 as Pico_OLED_242 # type: ignore
 import _thread # type: ignore
 import utime # type: ignore
+import uasyncio as asyncio # type: ignore
 
 # --- Constants ---
 # Pin Definitions
@@ -235,6 +236,14 @@ state_machine = State_Machine()
 game = Game_Stats()
 OLED = Pico_OLED_242.OLED_2inch42()
 
+async def wait_for_release_async(pin):
+    """
+    Asynchronously waits until the specified button is released.
+    Allows other tasks to run while waiting.
+    """
+    while pin.value():
+        await asyncio.sleep_ms(10)
+
 def wait_for_release(pin):
     """
     Waits until the specified button is released.
@@ -339,7 +348,7 @@ def display_clear(*regions, send_payload=True):
     if send_payload:
         OLED.show()
 
-def idle_mode():
+async def idle_mode():
     """
     Updates the display during idle mode, showing the current inning, rack, and countdown timer.
     This function also sets the game state to idle.
@@ -367,7 +376,7 @@ def idle_mode():
 
     state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
 
-def shot_clock():
+async def shot_clock():
     """
     Runs the countdown timer based on the selected game profile, updating the display at each second.
     This function also handles shot clock expiration and player actions such as using an extension or ending the turn.
@@ -390,7 +399,7 @@ def shot_clock():
         print("player_2 shooting")
 
     while game.countdown > -1:
-        if utime.ticks_diff(utime.ticks_ms(), countdown_checker) > 700:
+        if utime.ticks_diff(utime.ticks_ms(), countdown_checker) > 1000:
             # Get the current tens and units digits
             current_tens = game.countdown // 10  # Tens digit
             current_units = game.countdown % 10  # Units digit
@@ -428,10 +437,10 @@ def shot_clock():
                     game.extension_available = True
                     game.extension_used = False
 
-                countdown_checker = utime.ticks_ms()
+                flash_checker = utime.ticks_ms()
                 while True:
-                    if utime.ticks_diff(utime.ticks_ms(), countdown_checker) > 330:
-                        countdown_checker = utime.ticks_ms()
+                    if utime.ticks_diff(utime.ticks_ms(), flash_checker) > 330:
+                        flash_checker = utime.ticks_ms()
                         if off:
                             display_clear("shot_clock_digit_1", "shot_clock_digit_2")
                             off = False
@@ -441,31 +450,31 @@ def shot_clock():
 
                     if make_button.value() or miss_button.value():
                         if make_button.value():
-                            wait_for_release(make_button)
+                            await wait_for_release_async(make_button)
                         if miss_button.value():
-                            wait_for_release(miss_button)
+                            await wait_for_release_async(miss_button)
                             game.inning_counter +=0.5
                             
                         game.countdown = game.profile_based_countdown
                         display_clear("shot_clock_digit_1", "shot_clock_digit_2")
-                        return idle_mode()
+                        return await idle_mode()
+                    
+                    await asyncio.sleep_ms(10)
         
         if make_button.value():
-            wait_for_release(make_button)
+            await wait_for_release_async(make_button)
             game.countdown = game.profile_based_countdown
             if game.selected_profile == "APA":
                 game.extension_available = True
                 game.extension_used = False
             state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
             display_clear("shot_clock_digit_1", "shot_clock_digit_2")
-            countdown_check = None
-            countdown_checker = None
             if game.break_shot:
                 game.break_shot = False
-            return idle_mode()
+            return await idle_mode()
         
         if up_button.value():
-            wait_for_release(up_button)
+            await wait_for_release_async(up_button)
             if game.selected_profile == "WNT" or game.selected_profile == "BCA":
                 if game.player_1_shooting and game.player_1_extension_available:
                     game.player_1_extension_available = False
@@ -488,20 +497,20 @@ def shot_clock():
                 display_text(process_timer_duration(game.countdown), 0, 0, 8)
 
         if miss_button.value():
-            wait_for_release(miss_button)
+            await wait_for_release_async(miss_button)
             game.countdown = game.profile_based_countdown
             game.inning_counter +=0.5
             state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
             display_clear("shot_clock_digit_1", "shot_clock_digit_2")
             if game.inning_counter - 0.5 != int(game.inning_counter):
                 display_clear("inning_counter")
-            countdown_check = None
-            countdown_checker = None
             if game.break_shot:
                 game.break_shot = False
-            return idle_mode()
+            return await idle_mode()
+        
+        await asyncio.sleep_ms(10)
 
-def select_game_profile():
+async def select_game_profile():
     """
     Allows the user to select a game profile. Displays the list of profiles and handles user input to make a selection.
 
@@ -530,7 +539,7 @@ def select_game_profile():
             display_text(str((profile_list[list_traverser])), 25, 30, 3)
 
         if make_button.value():
-            wait_for_release(make_button)
+            await wait_for_release_async(make_button)
             if state_machine.profile_selection:
                 # Transitioning to SHOT_CLOCK_IDLE will happen in idle_mode()
                 game.countdown = game.profile_based_countdown
@@ -542,10 +551,10 @@ def select_game_profile():
                 game.timeouts_only = True
             state_machine.game_on = True
             game.menu_values = [game.rack_counter, game.speaker_muted, int(game.inning_counter)]
-            return idle_mode()
+            return await idle_mode()
         
         if up_button.value():
-            wait_for_release(up_button)
+            await wait_for_release_async(up_button)
             if list_traverser == profile_list_length:
                 list_traverser = 0
             else:
@@ -557,7 +566,7 @@ def select_game_profile():
             inactivity_check = utime.ticks_ms()
 
         if down_button.value():
-            wait_for_release(down_button)
+            await wait_for_release_async(down_button)
             if list_traverser == 0:
                 list_traverser = profile_list_length
             else:
@@ -567,8 +576,10 @@ def select_game_profile():
                 display_text(str(profile_list[list_traverser]), 25, 30, 3)
 
             inactivity_check = utime.ticks_ms()
+        
+        await asyncio.sleep_ms(10)
 
-def game_menu():
+async def game_menu():
     """
     Displays a new game settings menu, allowing the user to adjust various game parameters 
     such as the inning counter, rack counter, and mute status.
@@ -598,7 +609,7 @@ def game_menu():
         while True:
 
             if make_button.value():
-                wait_for_release(make_button)
+                await wait_for_release_async(make_button)
                 inning_counter_before_mod = game.inning_counter
                 rack_counter_before_mode = game.rack_counter
                 mute_bool_before_mod = game.speaker_muted
@@ -614,12 +625,12 @@ def game_menu():
 
                     if make_button.value():
                         display_shape("rect",8,40,8,8) #menu cursor)
-                        wait_for_release(make_button)
+                        await wait_for_release_async(make_button)
                         game.menu_values = [game.rack_counter, game.speaker_muted, int(game.inning_counter)]
                         break
 
                     if up_button.value():
-                        wait_for_release(up_button)
+                        await wait_for_release_async(up_button)
                         if game.current_menu_selection[1] == "Inning":
                             display_clear("menu_inning_counter")
                             game.inning_counter += 1
@@ -637,7 +648,7 @@ def game_menu():
                             display_text(game.speaker_muted, 64,40,1)
 
                     if down_button.value():
-                        wait_for_release(down_button)
+                        await wait_for_release_async(down_button)
                         if game.current_menu_selection[1] == "Inning":
                             if game.inning_counter > 1:
                                 display_clear("menu_inning_counter")
@@ -659,7 +670,7 @@ def game_menu():
                     if miss_button.value():
                         display_shape("rect",8,40,8,8) #menu cursor)
                         game.menu_values = [rack_counter_before_mode, mute_bool_before_mod, int(inning_counter_before_mod)]
-                        wait_for_release(miss_button)
+                        await wait_for_release_async(miss_button)
                         if game.current_menu_selection[1] == "Inning":
                             if game.inning_counter != inning_counter_before_mod:
                                 display_clear("menu_inning_counter")
@@ -676,23 +687,27 @@ def game_menu():
                                 game.speaker_muted = mute_bool_before_mod
                                 display_text(game.speaker_muted, 64, 40, 1)
                         break
+                    
+                    await asyncio.sleep_ms(10)
 
             if up_button.value():
-                wait_for_release(up_button)
+                await wait_for_release_async(up_button)
                 game.current_menu_index = (game.current_menu_index - 1) % len(game.menu_items)
                 game.update_menu_selection()
 
             if down_button.value():
-                wait_for_release(down_button)
+                await wait_for_release_async(down_button)
                 game.current_menu_index = (game.current_menu_index + 1) % len(game.menu_items)
                 game.update_menu_selection()
 
             if miss_button.value():
-                wait_for_release(miss_button)
+                await wait_for_release_async(miss_button)
                 display_clear("everything")
                 if game.rack_counter != rack_counter_before_mode:
                     game.break_shot = True
-                return idle_mode()
+                return await idle_mode()
+            
+            await asyncio.sleep_ms(10)
 
 def shot_clock_beep():
     """
@@ -736,25 +751,35 @@ def shot_clock_beep():
         wav_file.close()
         audio_out.deinit()
 
+async def main():
+    """
+    Main entry point for the async program.
+    """
+    await select_game_profile()
+    while True:
+        if make_button.value():
+            await wait_for_release_async(make_button)
+            await shot_clock()
+
+        if up_button.value():
+            await wait_for_release_async(up_button)
+            await idle_mode()
+
+        if down_button.value():
+            await wait_for_release_async(down_button)
+            await idle_mode()
+
+        if miss_button.value():
+            await wait_for_release_async(miss_button)
+            if not game.selected_profile == "Timeouts Mode":
+                await game_menu()
+
+        await asyncio.sleep_ms(10)  # Short delay to prevent busy-waiting
+
 # Start Program
-select_game_profile()
-while True:
-
-    if make_button.value():
-        wait_for_release(make_button)
-        shot_clock()
-
-    if up_button.value():
-        wait_for_release(up_button)
-        idle_mode()
-
-    if down_button.value():
-        wait_for_release(down_button)
-        idle_mode()
-
-    if miss_button.value():
-        wait_for_release(miss_button)
-        if not game.selected_profile == "Timeouts Mode":
-            game_menu()
-
-    utime.sleep_ms(10)  # Short delay to prevent busy-waiting
+try:
+    asyncio.run(main())
+except (KeyboardInterrupt, SystemExit):
+    pass
+finally:
+    asyncio.new_event_loop()  # Reset the event loop
