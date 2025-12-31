@@ -2,7 +2,7 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-# --- MOCKS ---
+# MOCKS
 # We must mock machine and framebuf BEFORE importing display/audio
 sys.modules["machine"] = MagicMock()
 sys.modules["framebuf"] = MagicMock()
@@ -21,7 +21,7 @@ class TestDisplay(unittest.IsolatedAsyncioTestCase):
         self.game = Game_Stats()
         self.oled = MagicMock()
 
-    # --- Low Level ---
+    # Low Level
     def test_display_text(self):
         display.display_text(self.oled, self.sm, "Test", 0, 0, 1)
         self.oled.text_scaled.assert_called_with("Test", 0, 0, 1)
@@ -57,17 +57,53 @@ class TestDisplay(unittest.IsolatedAsyncioTestCase):
         self.oled.rect.assert_not_called()
         self.oled.line.assert_not_called()
 
-    # --- High Level ---
+    # High Level
 
     async def test_enter_idle_mode_timeouts(self):
         self.game.timeouts_only = True
         await display.enter_idle_mode(self.sm, self.game, self.oled)
         self.oled.text_scaled.assert_any_call("Timeouts Mode", 12, 57, 1)
 
-    async def test_enter_idle_mode_game(self):
-        self.game.timeouts_only = False
-        await display.enter_idle_mode(self.sm, self.game, self.oled)
-        self.oled.text_scaled.assert_any_call("Inning:1", 0, 57, 1)
+        async def test_enter_idle_mode_game(self):
+            self.game.timeouts_only = False
+
+            self.game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
+
+            await display.enter_idle_mode(self.sm, self.game, self.oled)
+
+            self.oled.text_scaled.assert_any_call("1 --- Score --- ", 0, 57, 1)
+
+            self.oled.text_scaled.assert_any_call("1", 104, 57, 1)
+
+        async def test_enter_idle_mode_apa(self):
+            self.game.selected_profile = "APA"
+
+            self.game.timeouts_only = False
+
+            self.game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
+
+            self.game.player_1_score = 0
+
+            self.game.player_2_score = 0
+
+            await display.enter_idle_mode(self.sm, self.game, self.oled)
+
+            self.oled.text_scaled.assert_any_call("0 --- Score --- ", 0, 57, 1)
+
+            self.oled.text_scaled.assert_any_call("0", 104, 57, 1)
+
+        async def test_enter_idle_mode_double_digit_shift(self):
+            self.game.selected_profile = "APA"
+
+            self.game.player_1_score = 5
+
+            self.game.player_2_score = 10
+
+            await display.enter_idle_mode(self.sm, self.game, self.oled)
+
+            self.oled.text_scaled.assert_any_call("5 --- Score --- ", 0, 57, 1)
+
+            self.oled.text_scaled.assert_any_call("10", 102, 57, 1)
 
     async def test_enter_idle_mode_game_no_break(self):
         self.game.timeouts_only = False

@@ -28,6 +28,33 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.sm.game_on)
         self.assertEqual(self.game.selected_profile, "APA")
         self.assertEqual(self.game.profile_based_countdown, 20)
+        self.assertEqual(self.game.menu_items, ["P1", "P2", "Exit Match", "Mute"])
+        self.assertEqual(self.game.player_1_score, 0)
+        self.assertEqual(self.game.player_2_score, 0)
+        self.hw.enter_idle_mode.assert_called_once()
+
+    async def test_make_running_apa_increments_p1(self):
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.selected_profile = "APA"
+        self.game.player_1_shooting = True
+        self.game.player_1_score = 5
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_1_score, 6)
+        self.assertEqual(self.game.menu_values[0], 6)
+        self.hw.enter_idle_mode.assert_called_once()
+
+    async def test_make_running_apa_increments_p2(self):
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.selected_profile = "APA"
+        self.game.player_1_shooting = False
+        self.game.player_2_score = 3
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_2_score, 4)
+        self.assertEqual(self.game.menu_values[1], 4)
         self.hw.enter_idle_mode.assert_called_once()
 
     async def test_make_idle(self):
@@ -84,6 +111,19 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.game.rack_counter, 10)
         self.assertEqual(self.game.menu_values[1], 10)
         self.hw.render_menu.assert_called_once()
+
+    async def test_make_edit_save_apa(self):
+        self.sm.update_state(State_Machine.EDITING_VALUE)
+        self.game.selected_profile = "APA"
+        self.game.current_menu_index = 0  # P1
+        self.game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
+        self.game.temp_setting_value = 15
+        self.game.menu_values = [0, 0, None, False]
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_1_score, 15)
+        self.assertEqual(self.game.menu_values[0], 15)
 
     async def test_make_edit_save_inning(self):
         self.sm.update_state(State_Machine.EDITING_VALUE)

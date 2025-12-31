@@ -13,22 +13,44 @@ async def _handle_make_profile_selection(state_machine, game, hw_module):
     game.timeouts_only = game.extension_duration == 0
     state_machine.game_on = True
 
-    # Initial Menu Values
-    game.menu_values = [
-        int(game.inning_counter),
-        game.rack_counter,
-        None,
-        game.speaker_muted,
-    ]
+    # Update menu items and initial stats based on profile
+    if selected_name == "APA":
+        game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
+        game.player_1_score = 0
+        game.player_2_score = 0
+        game.menu_values = [
+            game.player_1_score,
+            game.player_2_score,
+            None,
+            game.speaker_muted,
+        ]
+    else:
+        game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
+        game.inning_counter = 1.0
+        game.rack_counter = 1
+        game.menu_values = [
+            int(game.inning_counter),
+            game.rack_counter,
+            None,
+            game.speaker_muted,
+        ]
 
     await hw_module.enter_idle_mode(state_machine, game)
 
 
 async def _handle_make_countdown(state_machine, game, hw_module):
     """Handle MAKE button in countdown-related states."""
-    game.countdown = game.profile_based_countdown
     if game.selected_profile == "APA":
+        if game.player_1_shooting:
+            game.player_1_score += 1
+        else:
+            game.player_2_score += 1
+        # Update menu values to reflect new scores
+        game.menu_values[0] = game.player_1_score
+        game.menu_values[1] = game.player_2_score
         game.extension_available, game.extension_used = True, False
+
+    game.countdown = game.profile_based_countdown
     game.break_shot = False
     await hw_module.enter_idle_mode(state_machine, game)
 
@@ -52,12 +74,21 @@ async def _handle_make_editing(state_machine, game, hw_module):
 
     # Apply changes to actual game stats
     sel = game.menu_items[game.current_menu_index]
-    if sel == "Rack":
-        game.rack_counter = game.temp_setting_value
+    if sel == "P1":
+        game.player_1_score = int(game.temp_setting_value)
+        game.menu_values[0] = game.player_1_score
+    elif sel == "P2":
+        game.player_2_score = int(game.temp_setting_value)
+        game.menu_values[1] = game.player_2_score
+    elif sel == "Rack":
+        game.rack_counter = int(game.temp_setting_value)
+        game.menu_values[1] = game.rack_counter
     elif sel == "Mute":
         game.speaker_muted = game.temp_setting_value
+        game.menu_values[3] = game.speaker_muted
     elif sel == "Inning":
         game.inning_counter = float(game.temp_setting_value)
+        game.menu_values[0] = int(game.inning_counter)
 
     state_machine.update_state(State_Machine.MENU)
     await hw_module.render_menu(state_machine, game)
@@ -177,6 +208,14 @@ async def handle_miss(state_machine, game, hw_module):
         # Turn over
         game.countdown = game.profile_based_countdown
         game.inning_counter += 0.5
+        # Update menu values if applicable (though we are going back to IDLE)
+        if game.selected_profile == "APA":
+            game.menu_values[0] = game.player_1_score
+            game.menu_values[1] = game.player_2_score
+        else:
+            game.menu_values[0] = int(game.inning_counter)
+            game.menu_values[1] = game.rack_counter
+
         game.break_shot = False
         await hw_module.enter_idle_mode(state_machine, game)
 

@@ -52,8 +52,10 @@ class Game_Stats:
         self.extension_used = False
         self.player_1_shooting = True
         self.player_1_extension_available = True
+        self.player_1_score = 0
         self.player_2_shooting = False
         self.player_2_extension_available = True
+        self.player_2_score = 0
         self.inning_counter = 1.0
         self.rack_counter = 1
         self.break_shot = True

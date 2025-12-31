@@ -1,7 +1,7 @@
 from lib.hardware_config import DISPLAY_REGIONS
 from lib.models import State_Machine
 
-# --- Low Level Helpers ---
+# Low Level Helpers
 
 
 def display_text(oled, state_machine, payload, x, y, font_size, send_payload=True):
@@ -46,7 +46,7 @@ def process_timer_duration(duration):
     return f"{duration:02d}"
 
 
-# --- High Level Logic Rendering ---
+# High Level Logic Rendering
 
 
 async def enter_idle_mode(state_machine, game, oled):
@@ -61,10 +61,29 @@ async def enter_idle_mode(state_machine, game, oled):
         display_text(oled, state_machine, "Timeouts Mode", 12, 57, 1)
     else:
         game.speaker_5_count = 4
+        if game.selected_profile == "APA":
+            val0, val1 = game.player_1_score, game.player_2_score
+        else:
+            val0, val1 = int(game.inning_counter), int(game.rack_counter)
+
+        display_text(oled, state_machine, str(val0), 2, 57, 1, True)
+        # Render prefix and val1 separately to allow pixel-perfect shift for val1 only
         display_text(
-            oled, state_machine, f"Inning:{int(game.inning_counter)}", 0, 57, 1, False
+            oled,
+            state_machine,
+            "---Score---",
+            20,
+            57,
+            1,
+            False,
         )
-        display_text(oled, state_machine, f"Rack:{int(game.rack_counter)}", 72, 57, 1)
+
+        # Calculate position for val1 (assuming ~6 pixels per character + spacing)
+        x_val1 = 112 if val0 < 10 else 110
+        if val1 >= 10:
+            x_val1 -= 2
+
+        display_text(oled, state_machine, str(val1), x_val1, 57, 1, True)
 
         if game.break_shot:
             game.countdown = game.profile_based_countdown + game.extension_duration

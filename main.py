@@ -11,14 +11,14 @@ from lib.button_interrupt import AsyncButton
 from lib.hardware_config import DOWN_PIN, MAKE_PIN, MISS_PIN, UP_PIN
 from lib.models import Game_Stats, State_Machine
 
-# --- Global Initialization ---
+# Global Initialization
 state_machine = State_Machine()
 game = Game_Stats()
 OLED = Pico_OLED_242.OLED_2inch42()
 inactivity_check = utime.ticks_ms()
 
 
-# --- Background Timer Helpers ---
+# Background Timer Helpers
 
 
 def _update_clock_display(curr_val, new_val):
@@ -94,7 +94,7 @@ async def _handle_ui_blink(blink_off):
     return not blink_off
 
 
-# --- Background Timer Task ---
+# Background Timer Task
 async def timer_worker():
     """
     Main heartbeat loop. Dispatches to helpers based on timing and state.
@@ -135,7 +135,7 @@ async def timer_worker():
         await asyncio.sleep_ms(50)
 
 
-# --- Button Handlers (Bridge) ---
+# Button Handlers (Bridge)
 # We need to update inactivity_check on any button press
 async def on_make():
     global inactivity_check
@@ -162,7 +162,7 @@ async def on_miss():
     await logic.handle_miss(state_machine, game, hw_wrapper)
 
 
-# --- Hardware Wrapper ---
+# Hardware Wrapper
 # Logic module expects an object with methods like enter_idle_mode.
 # We create a simple wrapper or just pass the module if signature matches.
 # The logic module calls: hw_module.enter_idle_mode(state_machine, game)
@@ -196,7 +196,7 @@ class HardwareWrapper:
 hw_wrapper = HardwareWrapper(OLED)
 
 
-# --- Main Entry Point ---
+# Main Entry Point
 async def main():
     # 1. Initialize Inputs
     AsyncButton(MAKE_PIN, on_make)
