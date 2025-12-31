@@ -115,7 +115,7 @@ class TestAudio(unittest.TestCase):
         new_callable=unittest.mock.mock_open,
         read_data=b"HEADER" + b"\x00" * 1024,
     )
-    def test_shot_clock_beep(self, mock_file):  # noqa: E501
+    def test_shot_clock_beep(self, mock_file):
         # Mock I2S
         with patch("lib.audio.I2S") as MockI2S, patch("lib.audio.Pin"):
             file_handle = mock_file.return_value
