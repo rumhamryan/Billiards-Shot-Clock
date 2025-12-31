@@ -1,4 +1,4 @@
-from machine import I2S, Pin  # type: ignore
+from machine import I2S, Pin
 
 from lib.hardware_config import (
     I2S_BITS,

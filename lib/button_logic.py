@@ -64,7 +64,28 @@ async def handle_make(state_machine, game, hw_module):
         await hw_module.render_menu(state_machine, game)
 
 
-async def handle_up(state_machine, game, hw_module):  # noqa: PLR0912
+def _process_extension(game):
+    """Internal helper to calculate if an extension can be applied and apply it."""
+    p1_can = game.player_1_shooting and game.player_1_extension_available
+    p2_can = game.player_2_shooting and game.player_2_extension_available
+
+    can_extend = False
+    if game.selected_profile in ["WNT", "BCA"] and (p1_can or p2_can):
+        if game.player_1_shooting:
+            game.player_1_extension_available = False
+        else:
+            game.player_2_extension_available = False
+        can_extend = True
+    elif game.selected_profile == "APA" and game.extension_available:
+        game.extension_available, game.extension_used = False, True
+        can_extend = True
+
+    if can_extend:
+        game.countdown += game.extension_duration
+    return can_extend
+
+
+async def handle_up(state_machine, game, hw_module):
     """Logic for the UP button."""
     state = state_machine.state
 
@@ -75,23 +96,7 @@ async def handle_up(state_machine, game, hw_module):  # noqa: PLR0912
         await hw_module.render_profile_selection(state_machine, game)
 
     elif state == State_Machine.COUNTDOWN_IN_PROGRESS:
-        # Use Extension
-        p1_can = game.player_1_shooting and game.player_1_extension_available
-        p2_can = game.player_2_shooting and game.player_2_extension_available
-
-        can_extend = False
-        if game.selected_profile in ["WNT", "BCA"] and (p1_can or p2_can):
-            if game.player_1_shooting:
-                game.player_1_extension_available = False
-            else:
-                game.player_2_extension_available = False
-            can_extend = True
-        elif game.selected_profile == "APA" and game.extension_available:
-            game.extension_available, game.extension_used = False, True
-            can_extend = True
-
-        if can_extend:
-            game.countdown += game.extension_duration
+        if _process_extension(game):
             await hw_module.update_timer_display(state_machine, game)
 
     elif state == State_Machine.MENU:

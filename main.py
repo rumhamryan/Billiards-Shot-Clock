@@ -18,120 +18,119 @@ OLED = Pico_OLED_242.OLED_2inch42()
 inactivity_check = utime.ticks_ms()
 
 
-# --- Background Timer Task ---
-async def timer_worker():  # noqa: PLR0912, PLR0915
-    """
-    Background task that handles the countdown timer and flashing independently.
-    Replaces original timer_worker.
-    """
+# --- Background Timer Helpers ---
+
+
+def _update_clock_display(curr_val, new_val):
+    """Handles the selective clearing and updating of the countdown digits."""
+    if new_val < 0:
+        return
+
+    curr_tens, curr_units = curr_val // 10, curr_val % 10
+    new_tens, new_units = new_val // 10, new_val % 10
+    if curr_tens != new_tens and curr_units != new_units:
+        display.display_clear(OLED, "shot_clock_digit_1", "shot_clock_digit_2")
+        display.display_text(
+            OLED, state_machine, display.process_timer_duration(new_val), 0, 0, 8
+        )
+    elif curr_tens != new_tens:
+        display.display_clear(OLED, "shot_clock_digit_1")
+        display.display_text(OLED, state_machine, str(new_tens), 0, 0, 8)
+    elif curr_units != new_units:
+        display.display_clear(OLED, "shot_clock_digit_2")
+        display.display_text(OLED, state_machine, str(new_units), 60, 0, 8)
+
+
+def _handle_countdown_tick():
+    """Logic executed every 1 second during active countdown."""
     global inactivity_check
+    inactivity_check = utime.ticks_ms()
+    old_val = game.countdown
+    game.countdown -= 1
+    new_val = game.countdown
+    # Audio trigger
+
+    if 0 <= new_val < 5 and not game.speaker_muted:
+        _thread.start_new_thread(audio.shot_clock_beep, ())
+
+    _update_clock_display(old_val, new_val)
+
+    if new_val == 0:
+        state_machine.update_state(State_Machine.COUNTDOWN_COMPLETE)
+        if game.selected_profile == "APA":
+            game.extension_available, game.extension_used = True, False
+
+
+def _handle_expired_flash(flash_off):
+    """Toggle the '00' display when time has expired."""
+    if flash_off:
+        display.display_text(
+            OLED, state_machine, display.process_timer_duration(game.countdown), 0, 0, 8
+        )
+    else:
+        display.display_clear(OLED, "shot_clock_digit_1", "shot_clock_digit_2")
+    return not flash_off
+
+
+async def _handle_ui_blink(blink_off):
+    """Manages blinking for menu cursor and profile selection."""
+    if (
+        state_machine.profile_selection
+        and utime.ticks_diff(utime.ticks_ms(), inactivity_check) > 500
+    ):
+        if blink_off:
+            display.display_clear(OLED, "profile_selection")
+
+        else:
+            await display.render_profile_selection(state_machine, game, OLED)
+
+    elif state_machine.menu or state_machine.editing_value:
+        if blink_off:
+            display.display_clear(OLED, "menu_selector")
+
+        else:
+            display.display_shape(OLED, "rect", 8, 40, 8, 8, True)
+
+    return not blink_off
+
+
+# --- Background Timer Task ---
+async def timer_worker():
+    """
+    Main heartbeat loop. Dispatches to helpers based on timing and state.
+    """
     last_tick = utime.ticks_ms()
     flash_checker = utime.ticks_ms()
-    flash_off = False
-
     blink_checker = utime.ticks_ms()
+    flash_off = False
     blink_off = False
 
     while True:
         now = utime.ticks_ms()
+        # 1. Ticking Countdown
+        if (
+            state_machine.countdown_in_progress
+            and utime.ticks_diff(now, last_tick) > 1000
+        ):
+            last_tick = now
+            _handle_countdown_tick()
 
-        # 1. Handle Countdown Logic
-        if state_machine.countdown_in_progress:
-            inactivity_check = now  # Reset inactivity while clock is running
-            if utime.ticks_diff(now, last_tick) > 1000:
-                last_tick = now
-
-                # Track digits to selectively clear display
-                curr_tens, curr_units = game.countdown // 10, game.countdown % 10
-                game.countdown -= 1
-                new_tens, new_units = game.countdown // 10, game.countdown % 10
-
-                # Audio Beep
-                if 0 <= game.countdown < 5 and not game.speaker_muted:
-                    _thread.start_new_thread(audio.shot_clock_beep, ())
-
-                # Display Update with selective clearing
-                if game.countdown >= 0:
-                    if curr_tens != new_tens and curr_units != new_units:
-                        display.display_clear(
-                            OLED, "shot_clock_digit_1", "shot_clock_digit_2"
-                        )
-                        display.display_text(
-                            OLED,
-                            state_machine,
-                            display.process_timer_duration(game.countdown),
-                            0,
-                            0,
-                            8,
-                        )
-                    elif curr_tens != new_tens:
-                        display.display_clear(OLED, "shot_clock_digit_1")
-                        display.display_text(OLED, state_machine, str(new_tens), 0, 0, 8)
-                    elif curr_units != new_units:
-                        display.display_clear(OLED, "shot_clock_digit_2")
-                        display.display_text(
-                            OLED, state_machine, str(new_units), 60, 0, 8
-                        )
-
-                # Zero Check
-                if game.countdown == 0:
-                    state_machine.update_state(State_Machine.COUNTDOWN_COMPLETE)
-                    if game.selected_profile == "APA":
-                        game.extension_available, game.extension_used = True, False
-
-        # 2. Handle Flashing (Time Over)
+        # 2. Expired Flashing
         elif (
             state_machine.countdown_complete
             and utime.ticks_diff(now, flash_checker) > 330
         ):
             flash_checker = now
-            if flash_off:
-                display.display_text(
-                    OLED,
-                    state_machine,
-                    display.process_timer_duration(game.countdown),
-                    0,
-                    0,
-                    8,
-                )
-                flash_off = False
-            else:
-                display.display_clear(OLED, "shot_clock_digit_1", "shot_clock_digit_2")
-                flash_off = True
+            flash_off = _handle_expired_flash(flash_off)
 
-        # 3. Handle Other Blinking (Menu / Profile Select)
+        # 3. UI Blinking
         if (
             state_machine.profile_selection
             or state_machine.menu
             or state_machine.editing_value
         ) and utime.ticks_diff(now, blink_checker) > 500:
             blink_checker = now
-            blink_off = not blink_off
-
-            if (
-                state_machine.profile_selection
-                and utime.ticks_diff(now, inactivity_check) > 500
-            ):
-                # Only blink after a short period of inactivity
-                if blink_off:
-                    display.display_clear(OLED, "profile_selection")
-                else:
-                    await display.render_profile_selection(state_machine, game, OLED)
-
-            elif state_machine.menu:
-                # Blink the cursor square
-                if blink_off:
-                    display.display_clear(OLED, "menu_selector")
-                else:
-                    display.display_shape(OLED, "rect", 8, 40, 8, 8, True)
-
-            elif state_machine.editing_value:
-                # Blink the cursor square even faster or differently?
-                # Keep it simple for now
-                if blink_off:
-                    display.display_clear(OLED, "menu_selector")
-                else:
-                    display.display_shape(OLED, "rect", 8, 40, 8, 8, True)
+            blink_off = await _handle_ui_blink(blink_off)
 
         await asyncio.sleep_ms(50)
 
