@@ -3,7 +3,7 @@ from lib.models import State_Machine
 
 async def _handle_make_profile_selection(state_machine, game, hw_module):
     """Handle MAKE button in PROFILE_SELECTION state."""
-    profile_list = list(game.game_profiles)
+    profile_list = game.profile_names
     selected_name = profile_list[game.profile_selection_index]
     profile = game.game_profiles[selected_name]
 
@@ -122,7 +122,7 @@ async def handle_up(state_machine, game, hw_module):
 
     if state == State_Machine.PROFILE_SELECTION:
         game.profile_selection_index = (game.profile_selection_index - 1) % len(
-            game.game_profiles
+            game.profile_names
         )
         await hw_module.render_profile_selection(state_machine, game)
 
@@ -150,7 +150,7 @@ async def handle_down(state_machine, game, hw_module):
 
     if state == State_Machine.PROFILE_SELECTION:
         game.profile_selection_index = (game.profile_selection_index + 1) % len(
-            game.game_profiles
+            game.profile_names
         )
         await hw_module.render_profile_selection(state_machine, game)
 

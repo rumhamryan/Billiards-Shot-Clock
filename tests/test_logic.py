@@ -204,6 +204,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.sm.update_state(State_Machine.PROFILE_SELECTION)
         self.game.profile_selection_index = 0
         self.game.game_profiles = {"A": {}, "B": {}}
+        self.game.profile_names = ["A", "B"]
 
         await logic.handle_down(self.sm, self.game, self.hw)
 

@@ -83,6 +83,7 @@ class TestDisplay(unittest.IsolatedAsyncioTestCase):
 
     async def test_render_profile_selection(self):
         self.game.game_profiles = {"A": {}}
+        self.game.profile_names = ["A"]
         self.game.profile_selection_index = 0
         await display.render_profile_selection(self.sm, self.game, self.oled)
         self.oled.text_scaled.assert_any_call("Select Game:", 15, 10, 1)

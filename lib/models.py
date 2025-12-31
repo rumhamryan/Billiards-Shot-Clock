@@ -65,6 +65,7 @@ class Game_Stats:
             "BCA": {"timer_duration": 45, "extension_duration": 45},
             "Timeouts Mode": {"timer_duration": 60, "extension_duration": 0},
         }
+        self.profile_names = ["APA", "BCA", "WNT", "Timeouts Mode"]
         self.selected_profile = None
         self.timeouts_only = False
         # Menu Order: Inning, Rack, Exit Match, Mute

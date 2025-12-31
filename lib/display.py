@@ -96,7 +96,7 @@ async def render_profile_selection(state_machine, game, oled, clear_all=False):
     region = "everything" if clear_all else "profile_selection"
     display_clear(oled, region, send_payload=False)
 
-    profile_list = list(game.game_profiles)
+    profile_list = game.profile_names
     idx = game.profile_selection_index
     name = profile_list[idx]
 
