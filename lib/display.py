@@ -93,73 +93,55 @@ async def update_timer_display(state_machine, game, oled):
 
 
 async def render_profile_selection(state_machine, game, oled):
-    display_clear(oled, "profile_selection")
+    display_clear(oled, "profile_selection", send_payload=False)
 
     profile_list = list(game.game_profiles)
     idx = game.profile_selection_index
     name = profile_list[idx]
 
     display_text(oled, state_machine, "Select Game:", 15, 10, 1, False)
-    display_text(oled, state_machine, str(name), 25, 30, 3)
+    display_text(oled, state_machine, str(name), 25, 30, 3, True)
 
 
 async def render_menu(state_machine, game, oled):
-    display_clear(oled, "everything")
+    """Renders the game menu. Handles both navigation and editing modes."""
+    # 1. Clear the entire buffer but DON'T send to hardware yet
+    display_clear(oled, "everything", send_payload=False)
 
-    # Header
+    # 2. Draw static Header
     display_text(oled, state_machine, "Game", 0, 2, 2, False)
     display_text(oled, state_machine, "Menu", 66, 2, 2, False)
     display_shape(oled, "line", 0, 19, 128, 19, False)
     display_shape(oled, "line", 0, 20, 128, 20, False)
 
-    # Using existing helper to draw list
-    game.update_menu_selection(
+    # 3. Determine what values to show (Current values vs Temporary edit value)
+    prev_idx = (game.current_menu_index - 1) % len(game.menu_items)
+    next_idx = (game.current_menu_index + 1) % len(game.menu_items)
+
+    val_prev = game.menu_values[prev_idx]
+    val_curr = (
+        game.temp_setting_value
+        if state_machine.editing_value
+        else game.menu_values[game.current_menu_index]
+    )
+    val_next = game.menu_values[next_idx]
+
+    # 4. Draw the menu items
+    display_text(
+        oled, state_machine, f"{game.menu_items[prev_idx]}:{val_prev}", 24, 24, 1, False
+    )
+    display_text(
         oled,
         state_machine,
-        display_clear,
-        display_text,
-        display_shape,
-        send_payload=True,
-        clear_before_payload=False,
+        f"{game.menu_items[game.current_menu_index]}:{val_curr}",
+        24,
+        40,
+        1,
+        False,
+    )
+    display_text(
+        oled, state_machine, f"{game.menu_items[next_idx]}:{val_next}", 24, 56, 1, False
     )
 
-    # Cursor Logic
-    if state_machine.editing_value:
-        # Show a solid indicator or highlight when editing
-        display_shape(oled, "rect", 8, 40, 8, 8, True)
-        # Clear the value area of the middle item and draw the temp value
-        display_clear(oled, "menu_items", send_payload=False)  # Clear items area
-        # Re-draw with the temp value for the selected item
-        prev_idx = (game.current_menu_index - 1) % len(game.menu_items)
-        next_idx = (game.current_menu_index + 1) % len(game.menu_items)
-
-        display_text(
-            oled,
-            state_machine,
-            f"{game.menu_items[prev_idx]}:{game.menu_values[prev_idx]}",
-            24,
-            24,
-            1,
-            False,
-        )
-        display_text(
-            oled,
-            state_machine,
-            f"{game.menu_items[game.current_menu_index]}:{game.temp_setting_value}",
-            24,
-            40,
-            1,
-            False,
-        )
-        display_text(
-            oled,
-            state_machine,
-            f"{game.menu_items[next_idx]}:{game.menu_values[next_idx]}",
-            24,
-            56,
-            1,
-            True,
-        )
-    else:
-        # Normal cursor
-        display_shape(oled, "rect", 8, 40, 8, 8, True)
+    # 5. Draw the cursor and FINAL show()
+    display_shape(oled, "rect", 8, 40, 8, 8, True)
