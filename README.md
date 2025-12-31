@@ -49,6 +49,7 @@ A high-performance, responsive shot clock for billiards (pool) designed for the 
    - **Make**: Stops the timer and resets it for the next shot. In **APA** mode, this also increments the shooting player's score.
    - **Up**: Uses an extension (if available for the selected profile).
    - **Miss**: Ends the current turn and switches the shooting player.
+   - **Make + Miss (Simultaneous)**: Starts a new rack. This increments the rack counter and resets the clock to the "break shot" duration.
 3. **Game Menu**: Press **Miss** while the clock is idle to access settings:
    - **Adjust Score/Inning**: Manually edit Player 1 (Inning) or Player 2 (Rack) values.
    - **Toggle Mute**: Enable/Disable the speaker.

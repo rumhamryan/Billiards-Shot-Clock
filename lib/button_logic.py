@@ -193,6 +193,21 @@ async def handle_make(state_machine, game, hw_module):
         await hw_module.render_profile_selection(state_machine, game, clear_all=True)
 
 
+async def handle_new_rack(state_machine, game, hw_module):
+    """Logic for starting a new rack (Make + Miss pressed together)."""
+    if state_machine.profile_selection or state_machine.victory:
+        return
+
+    game.rack_counter += 1
+    game.break_shot = True
+
+    # Update menu values for non-APA
+    if game.selected_profile != "APA":
+        game.menu_values[1] = game.rack_counter
+
+    await hw_module.enter_idle_mode(state_machine, game)
+
+
 def _process_extension(game):
     """Internal helper to calculate if an extension can be applied and apply it."""
     p1_can = game.player_1_shooting and game.player_1_extension_available

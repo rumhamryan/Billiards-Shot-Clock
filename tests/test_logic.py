@@ -216,6 +216,17 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
             self.sm, self.game, clear_all=True
         )
 
+    async def test_new_rack(self):
+        self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        self.game.rack_counter = 1
+        self.game.break_shot = False
+
+        await logic.handle_new_rack(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.rack_counter, 2)
+        self.assertTrue(self.game.break_shot)
+        self.hw.enter_idle_mode.assert_called_once()
+
     # --- HANDLE UP ---
 
     async def test_up_profile_selection(self):
