@@ -183,8 +183,8 @@ class HardwareWrapper:
     async def update_timer_display(self, sm, g):
         await display.update_timer_display(sm, g, self.oled)
 
-    async def render_profile_selection(self, sm, g):
-        await display.render_profile_selection(sm, g, self.oled)
+    async def render_profile_selection(self, sm, g, clear_all=False):
+        await display.render_profile_selection(sm, g, self.oled, clear_all=clear_all)
 
     async def render_menu(self, sm, g):
         await display.render_menu(sm, g, self.oled)

@@ -115,7 +115,9 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         await logic.handle_make(self.sm, self.game, self.hw)
 
         self.assertEqual(self.sm.state, State_Machine.PROFILE_SELECTION)
-        self.hw.render_profile_selection.assert_called_once()
+        self.hw.render_profile_selection.assert_called_once_with(
+            self.sm, self.game, clear_all=True
+        )
 
     # --- HANDLE UP ---
 

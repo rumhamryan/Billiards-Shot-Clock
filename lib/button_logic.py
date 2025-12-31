@@ -46,7 +46,7 @@ async def handle_make(state_machine, game, hw_module):
         # Check for Exit
         if game.menu_items[game.current_menu_index] == "Exit Match":
             state_machine.update_state(State_Machine.PROFILE_SELECTION)
-            await hw_module.render_profile_selection(state_machine, game)
+            await hw_module.render_profile_selection(state_machine, game, clear_all=True)
             return
 
         # Enter Editing Mode for the current selection

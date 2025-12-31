@@ -92,8 +92,9 @@ async def update_timer_display(state_machine, game, oled):
     display_text(oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8)
 
 
-async def render_profile_selection(state_machine, game, oled):
-    display_clear(oled, "profile_selection", send_payload=False)
+async def render_profile_selection(state_machine, game, oled, clear_all=False):
+    region = "everything" if clear_all else "profile_selection"
+    display_clear(oled, region, send_payload=False)
 
     profile_list = list(game.game_profiles)
     idx = game.profile_selection_index
