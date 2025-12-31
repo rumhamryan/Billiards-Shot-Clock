@@ -37,6 +37,7 @@ ignore = ["PLR2004"] # Allow magic numbers (common in HW config)
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["PLR2004", "PLR0915", "PLR0912", "E402"]
 "lib/hardware_config.py" = ["PLR2004"] # Allow pin numbers
+"lib/audio.py" = ["SIM105"] # contextlib.suppress not in MicroPython
 
 [tool.ruff.lint.pylint]
 max-statements = 40
