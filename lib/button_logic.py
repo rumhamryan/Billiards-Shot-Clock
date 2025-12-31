@@ -65,6 +65,7 @@ async def _handle_make_editing(state_machine, game, hw_module):
 
 async def _handle_make_exit_confirmation(state_machine, game, hw_module):
     """Handle MAKE button in EXIT_MATCH_CONFIRMATION state."""
+    game.profile_selection_index = 0
     state_machine.update_state(State_Machine.PROFILE_SELECTION)
     await hw_module.render_profile_selection(state_machine, game, clear_all=True)
 
@@ -182,6 +183,7 @@ async def handle_miss(state_machine, game, hw_module):
     elif state == State_Machine.SHOT_CLOCK_IDLE:
         # Open Menu
         if game.selected_profile != "Timeouts Mode":
+            game.current_menu_index = 0
             state_machine.update_state(State_Machine.MENU)
             await hw_module.render_menu(state_machine, game)
 
