@@ -60,9 +60,9 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_make_menu_enter_edit(self):
         self.sm.update_state(State_Machine.MENU)
-        self.game.current_menu_index = 0  # Rack
+        self.game.current_menu_index = 1  # Rack
         self.game.rack_counter = 5
-        self.game.menu_values = [5, False, 1]
+        self.game.menu_values = [1, 5, False, None]
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
@@ -72,24 +72,24 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_make_edit_save(self):
         self.sm.update_state(State_Machine.EDITING_VALUE)
-        self.game.current_menu_index = 0  # Rack
-        self.game.menu_items = ["Rack", "Mute", "Inning"]
+        self.game.current_menu_index = 1  # Rack
+        self.game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
         self.game.temp_setting_value = 10
-        self.game.menu_values = [5, False, 1]  # Old values
+        self.game.menu_values = [1, 5, None, False]  # Old values
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
         self.assertEqual(self.sm.state, State_Machine.MENU)
         self.assertEqual(self.game.rack_counter, 10)
-        self.assertEqual(self.game.menu_values[0], 10)
+        self.assertEqual(self.game.menu_values[1], 10)
         self.hw.render_menu.assert_called_once()
 
     async def test_make_edit_save_inning(self):
         self.sm.update_state(State_Machine.EDITING_VALUE)
-        self.game.current_menu_index = 2  # Inning
-        self.game.menu_items = ["Rack", "Mute", "Inning"]
+        self.game.current_menu_index = 0  # Inning
+        self.game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
         self.game.temp_setting_value = 3
-        self.game.menu_values = [1, False, 1]
+        self.game.menu_values = [1, 1, None, False]
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
@@ -97,14 +97,25 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_make_edit_save_mute(self):
         self.sm.update_state(State_Machine.EDITING_VALUE)
-        self.game.current_menu_index = 1  # Mute
-        self.game.menu_items = ["Rack", "Mute", "Inning"]
+        self.game.current_menu_index = 3  # Mute
+        self.game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
         self.game.temp_setting_value = True
-        self.game.menu_values = [1, False, 1]
+        self.game.menu_values = [1, 1, None, False]
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
         self.assertTrue(self.game.speaker_muted)
+
+    async def test_make_menu_exit(self):
+        self.sm.update_state(State_Machine.MENU)
+        self.game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
+        self.game.menu_values = [1, 1, None, False]
+        self.game.current_menu_index = 2  # Exit Match
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.sm.state, State_Machine.PROFILE_SELECTION)
+        self.hw.render_profile_selection.assert_called_once()
 
     # --- HANDLE UP ---
 
@@ -164,14 +175,14 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_up_edit_increment(self):
         self.sm.update_state(State_Machine.EDITING_VALUE)
-        self.game.current_menu_index = 0  # Rack
+        self.game.current_menu_index = 1  # Rack
         self.game.temp_setting_value = 5
         await logic.handle_up(self.sm, self.game, self.hw)
         self.assertEqual(self.game.temp_setting_value, 6)
 
     async def test_up_edit_toggle_mute(self):
         self.sm.update_state(State_Machine.EDITING_VALUE)
-        self.game.current_menu_index = 1  # Mute
+        self.game.current_menu_index = 3  # Mute
         self.game.temp_setting_value = False
         await logic.handle_up(self.sm, self.game, self.hw)
         self.assertTrue(self.game.temp_setting_value)
@@ -195,14 +206,14 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_down_edit_decrement(self):
         self.sm.update_state(State_Machine.EDITING_VALUE)
-        self.game.current_menu_index = 0  # Rack
+        self.game.current_menu_index = 1  # Rack
         self.game.temp_setting_value = 5
         await logic.handle_down(self.sm, self.game, self.hw)
         self.assertEqual(self.game.temp_setting_value, 4)
 
     async def test_down_edit_toggle_mute(self):
         self.sm.update_state(State_Machine.EDITING_VALUE)
-        self.game.current_menu_index = 1  # Mute
+        self.game.current_menu_index = 3  # Mute
         self.game.temp_setting_value = True
         await logic.handle_down(self.sm, self.game, self.hw)
         self.assertFalse(self.game.temp_setting_value)

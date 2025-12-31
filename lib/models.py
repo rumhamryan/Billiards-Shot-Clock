@@ -62,11 +62,13 @@ class Game_Stats:
         }
         self.selected_profile = None
         self.timeouts_only = False
-        self.menu_items = ["Rack", "Mute", "Inning"]
+        # Menu Order: Inning, Rack, Exit Match, Mute
+        self.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
         self.menu_values = [
-            self.rack_counter,
-            self.speaker_muted,
             int(self.inning_counter),
+            self.rack_counter,
+            None,
+            self.speaker_muted,
         ]
         self.current_menu_index = 0
         self.current_menu_selection = [

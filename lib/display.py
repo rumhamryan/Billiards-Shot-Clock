@@ -126,21 +126,25 @@ async def render_menu(state_machine, game, oled):
     )
     val_next = game.menu_values[next_idx]
 
+    # Helper to format
+    def fmt(name, val):
+        return name if val is None else f"{name}:{val}"
+
     # 4. Draw the menu items
     display_text(
-        oled, state_machine, f"{game.menu_items[prev_idx]}:{val_prev}", 24, 24, 1, False
+        oled, state_machine, fmt(game.menu_items[prev_idx], val_prev), 24, 24, 1, False
     )
     display_text(
         oled,
         state_machine,
-        f"{game.menu_items[game.current_menu_index]}:{val_curr}",
+        fmt(game.menu_items[game.current_menu_index], val_curr),
         24,
         40,
         1,
         False,
     )
     display_text(
-        oled, state_machine, f"{game.menu_items[next_idx]}:{val_next}", 24, 56, 1, False
+        oled, state_machine, fmt(game.menu_items[next_idx], val_next), 24, 56, 1, False
     )
 
     # 5. Draw the cursor and FINAL show()

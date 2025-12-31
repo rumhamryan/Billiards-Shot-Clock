@@ -19,9 +19,10 @@ async def handle_make(state_machine, game, hw_module):
 
         # Initial Menu Values
         game.menu_values = [
-            game.rack_counter,
-            game.speaker_muted,
             int(game.inning_counter),
+            game.rack_counter,
+            None,
+            game.speaker_muted,
         ]
 
         await hw_module.enter_idle_mode(state_machine, game)
@@ -42,6 +43,12 @@ async def handle_make(state_machine, game, hw_module):
         await hw_module.enter_idle_mode(state_machine, game)
 
     elif state == State_Machine.MENU:
+        # Check for Exit
+        if game.menu_items[game.current_menu_index] == "Exit Match":
+            state_machine.update_state(State_Machine.PROFILE_SELECTION)
+            await hw_module.render_profile_selection(state_machine, game)
+            return
+
         # Enter Editing Mode for the current selection
         state_machine.update_state(State_Machine.EDITING_VALUE)
         game.temp_setting_value = game.menu_values[game.current_menu_index]
