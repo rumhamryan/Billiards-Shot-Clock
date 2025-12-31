@@ -1,5 +1,3 @@
-from machine import Pin # type: ignore
-
 # Pin Definitions
 MAKE_PIN = 16
 UP_PIN = 17

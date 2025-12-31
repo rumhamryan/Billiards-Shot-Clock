@@ -1,6 +1,7 @@
-from machine import Pin
-import utime
 import uasyncio as asyncio
+import utime
+from machine import Pin
+
 
 class AsyncButton:
     def __init__(self, pin_id, callback, debounce_delay=200):
@@ -25,7 +26,7 @@ class AsyncButton:
                 loop.create_task(self._process_press())
             except Exception:
                 # In some MicroPython versions/scenarios, loop might not be ready
-                # or IRQ might be too restrictive. 
+                # or IRQ might be too restrictive.
                 pass
 
     async def _process_press(self):
@@ -36,10 +37,10 @@ class AsyncButton:
         # Optional: Wait for release if you want 'On Release' behavior
         # while self.pin.value():
         #    await asyncio.sleep_ms(20)
-        
+
         # In MicroPython, we assume the callback returns an awaitable (coroutine)
         # or we could inspect the result, but since main.py uses async wrappers,
         # we can just await the result of the call.
         res = self.callback()
-        if hasattr(res, "send"): # Basic check if it's a coroutine/generator
+        if hasattr(res, "send"):  # Basic check if it's a coroutine/generator
             await res

@@ -1,0 +1,61 @@
+[project]
+name = "billiards-shot-clock"
+version = "0.1.0"
+description = "A MicroPython shot clock for billiards on RP2040."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.10.0",
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+    "pytest-mock>=3.14.0",
+    "ruff>=0.4.2",
+    "micropython-rp2-stubs>=1.20.0", # Helps IDEs and potentially mypy
+]
+
+[tool.ruff]
+# MicroPython projects often have code in root and lib
+src = [".", "lib"]
+line-length = 89
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+  "E", "F",       # pycodestyle + pyflakes
+  "B",            # bugbear
+  "I",            # import sorting
+  "UP",           # pyupgrade
+  "SIM",          # simplify
+  "PLR",          # pylint refactor rules
+]
+ignore = ["PLR2004"] # Allow magic numbers (common in HW config)
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["PLR2004", "PLR0915", "PLR0912", "E402"]
+"lib/hardware_config.py" = ["PLR2004"] # Allow pin numbers
+
+[tool.ruff.lint.pylint]
+max-statements = 40
+max-branches = 12
+max-locals = 15
+max-args = 8
+
+[tool.mypy]
+python_version = "3.12"
+strict = false # Strictest is too hard for MicroPython without perfect stubs
+ignore_missing_imports = true # Crucial for uasyncio, machine, etc.
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --cov=lib --cov=main"
+testpaths = [
+    "tests",
+]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
