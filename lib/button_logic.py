@@ -1,74 +1,98 @@
 from lib.models import State_Machine
 
 
+async def _handle_make_profile_selection(state_machine, game, hw_module):
+    """Handle MAKE button in PROFILE_SELECTION state."""
+    profile_list = list(game.game_profiles)
+    selected_name = profile_list[game.profile_selection_index]
+    profile = game.game_profiles[selected_name]
+
+    game.selected_profile = selected_name
+    game.profile_based_countdown = profile["timer_duration"]
+    game.extension_duration = profile["extension_duration"]
+    game.timeouts_only = game.extension_duration == 0
+    state_machine.game_on = True
+
+    # Initial Menu Values
+    game.menu_values = [
+        int(game.inning_counter),
+        game.rack_counter,
+        None,
+        game.speaker_muted,
+    ]
+
+    await hw_module.enter_idle_mode(state_machine, game)
+
+
+async def _handle_make_countdown(state_machine, game, hw_module):
+    """Handle MAKE button in countdown-related states."""
+    game.countdown = game.profile_based_countdown
+    if game.selected_profile == "APA":
+        game.extension_available, game.extension_used = True, False
+    game.break_shot = False
+    await hw_module.enter_idle_mode(state_machine, game)
+
+
+async def _handle_make_menu(state_machine, game, hw_module):
+    """Handle MAKE button in MENU state."""
+    if game.menu_items[game.current_menu_index] == "Exit Match":
+        state_machine.update_state(State_Machine.EXIT_MATCH_CONFIRMATION)
+        await hw_module.render_exit_confirmation(state_machine, game)
+        return
+
+    # Enter Editing Mode for the current selection
+    state_machine.update_state(State_Machine.EDITING_VALUE)
+    game.temp_setting_value = game.menu_values[game.current_menu_index]
+    await hw_module.render_menu(state_machine, game)
+
+
+async def _handle_make_editing(state_machine, game, hw_module):
+    """Handle MAKE button in EDITING_VALUE state."""
+    game.menu_values[game.current_menu_index] = game.temp_setting_value
+
+    # Apply changes to actual game stats
+    sel = game.menu_items[game.current_menu_index]
+    if sel == "Rack":
+        game.rack_counter = game.temp_setting_value
+    elif sel == "Mute":
+        game.speaker_muted = game.temp_setting_value
+    elif sel == "Inning":
+        game.inning_counter = float(game.temp_setting_value)
+
+    state_machine.update_state(State_Machine.MENU)
+    await hw_module.render_menu(state_machine, game)
+
+
+async def _handle_make_exit_confirmation(state_machine, game, hw_module):
+    """Handle MAKE button in EXIT_MATCH_CONFIRMATION state."""
+    state_machine.update_state(State_Machine.PROFILE_SELECTION)
+    await hw_module.render_profile_selection(state_machine, game, clear_all=True)
+
+
 async def handle_make(state_machine, game, hw_module):
     """Logic for the MAKE button based on current state."""
     state = state_machine.state
 
     if state == State_Machine.PROFILE_SELECTION:
-        # Confirm Profile
-        profile_list = list(game.game_profiles)
-        selected_name = profile_list[game.profile_selection_index]
-        profile = game.game_profiles[selected_name]
-
-        game.selected_profile = selected_name
-        game.profile_based_countdown = profile["timer_duration"]
-        game.extension_duration = profile["extension_duration"]
-        game.timeouts_only = game.extension_duration == 0
-        state_machine.game_on = True
-
-        # Initial Menu Values
-        game.menu_values = [
-            int(game.inning_counter),
-            game.rack_counter,
-            None,
-            game.speaker_muted,
-        ]
-
-        await hw_module.enter_idle_mode(state_machine, game)
+        await _handle_make_profile_selection(state_machine, game, hw_module)
 
     elif state == State_Machine.SHOT_CLOCK_IDLE:
-        # Start Clock
         await hw_module.enter_shot_clock(state_machine, game)
 
     elif state in [
         State_Machine.COUNTDOWN_IN_PROGRESS,
         State_Machine.COUNTDOWN_COMPLETE,
     ]:
-        # Shot Made - Reset to Idle
-        game.countdown = game.profile_based_countdown
-        if game.selected_profile == "APA":
-            game.extension_available, game.extension_used = True, False
-        game.break_shot = False
-        await hw_module.enter_idle_mode(state_machine, game)
+        await _handle_make_countdown(state_machine, game, hw_module)
 
     elif state == State_Machine.MENU:
-        # Check for Exit
-        if game.menu_items[game.current_menu_index] == "Exit Match":
-            state_machine.update_state(State_Machine.PROFILE_SELECTION)
-            await hw_module.render_profile_selection(state_machine, game, clear_all=True)
-            return
-
-        # Enter Editing Mode for the current selection
-        state_machine.update_state(State_Machine.EDITING_VALUE)
-        game.temp_setting_value = game.menu_values[game.current_menu_index]
-        await hw_module.render_menu(state_machine, game)
+        await _handle_make_menu(state_machine, game, hw_module)
 
     elif state == State_Machine.EDITING_VALUE:
-        # Save Value and return to Menu
-        game.menu_values[game.current_menu_index] = game.temp_setting_value
+        await _handle_make_editing(state_machine, game, hw_module)
 
-        # Apply changes to actual game stats
-        sel = game.menu_items[game.current_menu_index]
-        if sel == "Rack":
-            game.rack_counter = game.temp_setting_value
-        elif sel == "Mute":
-            game.speaker_muted = game.temp_setting_value
-        elif sel == "Inning":
-            game.inning_counter = float(game.temp_setting_value)
-
-        state_machine.update_state(State_Machine.MENU)
-        await hw_module.render_menu(state_machine, game)
+    elif state == State_Machine.EXIT_MATCH_CONFIRMATION:
+        await _handle_make_exit_confirmation(state_machine, game, hw_module)
 
 
 def _process_extension(game):
@@ -167,5 +191,10 @@ async def handle_miss(state_machine, game, hw_module):
 
     elif state == State_Machine.EDITING_VALUE:
         # Cancel Edit
+        state_machine.update_state(State_Machine.MENU)
+        await hw_module.render_menu(state_machine, game)
+
+    elif state == State_Machine.EXIT_MATCH_CONFIRMATION:
+        # Cancel Exit
         state_machine.update_state(State_Machine.MENU)
         await hw_module.render_menu(state_machine, game)

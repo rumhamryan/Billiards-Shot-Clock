@@ -150,3 +150,12 @@ async def render_menu(state_machine, game, oled):
 
     # 5. Draw the cursor and FINAL show()
     display_shape(oled, "rect", 8, 40, 8, 8, True)
+
+
+async def render_exit_confirmation(state_machine, game, oled):
+    """Renders the 'Are you sure?' confirmation screen for exiting the match."""
+    display_clear(oled, "everything", send_payload=False)
+
+    display_text(oled, state_machine, "Are you sure?", 12, 25, 1, False)
+
+    oled.show()

@@ -5,6 +5,7 @@ class State_Machine:
     COUNTDOWN_COMPLETE = "countdown_complete"
     MENU = "menu"
     EDITING_VALUE = "editing_value"
+    EXIT_MATCH_CONFIRMATION = "exit_match_confirmation"
 
     def __init__(self, initial_state=PROFILE_SELECTION):
         self.state = initial_state
@@ -36,6 +37,10 @@ class State_Machine:
     @property
     def editing_value(self):
         return self.state == self.EDITING_VALUE
+
+    @property
+    def exit_match_confirmation(self):
+        return self.state == self.EXIT_MATCH_CONFIRMATION
 
 
 class Game_Stats:

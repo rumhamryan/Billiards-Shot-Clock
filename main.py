@@ -189,6 +189,9 @@ class HardwareWrapper:
     async def render_menu(self, sm, g):
         await display.render_menu(sm, g, self.oled)
 
+    async def render_exit_confirmation(self, sm, g):
+        await display.render_exit_confirmation(sm, g, self.oled)
+
 
 hw_wrapper = HardwareWrapper(OLED)
 

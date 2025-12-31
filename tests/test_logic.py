@@ -14,6 +14,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.hw.enter_shot_clock = AsyncMock()
         self.hw.render_menu = AsyncMock()
         self.hw.render_profile_selection = AsyncMock()
+        self.hw.render_exit_confirmation = AsyncMock()
         self.hw.update_timer_display = AsyncMock()
 
     # --- HANDLE MAKE ---
@@ -111,6 +112,14 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
         self.game.menu_values = [1, 1, None, False]
         self.game.current_menu_index = 2  # Exit Match
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.sm.state, State_Machine.EXIT_MATCH_CONFIRMATION)
+        self.hw.render_exit_confirmation.assert_called_once()
+
+    async def test_make_exit_confirm(self):
+        self.sm.update_state(State_Machine.EXIT_MATCH_CONFIRMATION)
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
@@ -256,6 +265,12 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_miss_cancel_edit(self):
         self.sm.update_state(State_Machine.EDITING_VALUE)
+        await logic.handle_miss(self.sm, self.game, self.hw)
+        self.assertTrue(self.sm.menu)
+        self.hw.render_menu.assert_called_once()
+
+    async def test_miss_cancel_exit_confirmation(self):
+        self.sm.update_state(State_Machine.EXIT_MATCH_CONFIRMATION)
         await logic.handle_miss(self.sm, self.game, self.hw)
         self.assertTrue(self.sm.menu)
         self.hw.render_menu.assert_called_once()
