@@ -16,46 +16,92 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.hw.render_profile_selection = AsyncMock()
         self.hw.render_exit_confirmation = AsyncMock()
         self.hw.update_timer_display = AsyncMock()
+        self.hw.render_skill_level_selection = AsyncMock()
+        self.hw.render_victory = AsyncMock()
 
     # --- HANDLE MAKE ---
 
-    async def test_make_profile_selection(self):
+    async def test_make_profile_selection_wnt(self):
+        self.sm.update_state(State_Machine.PROFILE_SELECTION)
+        self.game.profile_selection_index = 1  # WNT (assuming BCA is now first?)
+        # Wait, BCA was at 1 in some previous change?
+        # Let's check profile_names order in models.py
+        self.game.profile_names = ["APA", "BCA", "WNT", "Timeouts Mode"]
+        self.game.profile_selection_index = 2  # WNT
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertTrue(self.sm.game_on)
+        self.assertEqual(self.game.selected_profile, "WNT")
+        self.assertEqual(self.game.profile_based_countdown, 30)
+        self.hw.enter_idle_mode.assert_called_once()
+
+    async def test_make_profile_selection_apa_transitions_to_sl(self):
         self.sm.update_state(State_Machine.PROFILE_SELECTION)
         self.game.profile_selection_index = 0  # APA
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
-        self.assertTrue(self.sm.game_on)
-        self.assertEqual(self.game.selected_profile, "APA")
-        self.assertEqual(self.game.profile_based_countdown, 20)
-        self.assertEqual(self.game.menu_items, ["P1", "P2", "Exit Match", "Mute"])
-        self.assertEqual(self.game.player_1_score, 0)
-        self.assertEqual(self.game.player_2_score, 0)
+        self.assertEqual(self.sm.state, State_Machine.APA_SKILL_LEVEL_P1)
+        self.assertEqual(self.game.temp_setting_value, 3)
+        self.hw.render_skill_level_selection.assert_called_with(self.sm, self.game, 1)
+
+    async def test_make_sl_p1_transitions_to_p2(self):
+        self.sm.update_state(State_Machine.APA_SKILL_LEVEL_P1)
+        self.game.temp_setting_value = 5
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_1_skill_level, 5)
+        self.assertEqual(self.sm.state, State_Machine.APA_SKILL_LEVEL_P2)
+        self.assertEqual(self.game.temp_setting_value, 3)
+        self.hw.render_skill_level_selection.assert_called_with(self.sm, self.game, 2)
+
+    async def test_make_sl_p2_transitions_to_idle(self):
+        self.sm.update_state(State_Machine.APA_SKILL_LEVEL_P2)
+        self.game.player_1_skill_level = 5
+        self.game.temp_setting_value = 4
+        self.game.match_type = "9-Ball"
+
+        # Mock json load for _calculate_apa_targets
+        with unittest.mock.patch(
+            "builtins.open",
+            unittest.mock.mock_open(
+                read_data='{"9-Ball": {"targets": {"4": 31, "5": 38}}}'
+            ),
+        ):
+            await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_2_skill_level, 4)
+        self.assertEqual(self.game.player_2_target, 31)
+        self.assertEqual(self.game.player_1_target, 38)
+        self.assertEqual(self.sm.state, State_Machine.SHOT_CLOCK_IDLE)
         self.hw.enter_idle_mode.assert_called_once()
 
-    async def test_make_running_apa_increments_p1(self):
+    async def test_make_countdown_victory(self):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
         self.game.selected_profile = "APA"
         self.game.player_1_shooting = True
-        self.game.player_1_score = 5
+        self.game.player_1_score = 37
+        self.game.player_1_target = 38
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
-        self.assertEqual(self.game.player_1_score, 6)
-        self.assertEqual(self.game.menu_values[0], 6)
-        self.hw.enter_idle_mode.assert_called_once()
+        self.assertEqual(self.game.player_1_score, 38)
+        self.assertEqual(self.sm.state, State_Machine.VICTORY)
+        self.hw.render_victory.assert_called_with(self.sm, self.game, 1)
 
-    async def test_make_running_apa_increments_p2(self):
-        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
-        self.game.selected_profile = "APA"
-        self.game.player_1_shooting = False
-        self.game.player_2_score = 3
+    async def test_up_sl_selection_wraps(self):
+        self.sm.update_state(State_Machine.APA_SKILL_LEVEL_P1)
+        self.game.temp_setting_value = 9
+        await logic.handle_up(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.temp_setting_value, 1)
 
-        await logic.handle_make(self.sm, self.game, self.hw)
-
-        self.assertEqual(self.game.player_2_score, 4)
-        self.assertEqual(self.game.menu_values[1], 4)
-        self.hw.enter_idle_mode.assert_called_once()
+    async def test_down_sl_selection_wraps(self):
+        self.sm.update_state(State_Machine.APA_SKILL_LEVEL_P1)
+        self.game.temp_setting_value = 1
+        await logic.handle_down(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.temp_setting_value, 9)
 
     async def test_make_idle(self):
         self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
@@ -66,6 +112,8 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
         self.game.selected_profile = "APA"
         self.game.extension_available = False
+        self.game.player_1_target = 10
+        self.game.player_2_target = 10
 
         await logic.handle_make(self.sm, self.game, self.hw)
 

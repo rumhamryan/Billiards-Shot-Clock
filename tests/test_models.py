@@ -27,12 +27,21 @@ class TestModels(unittest.TestCase):
         sm.update_state(State_Machine.EDITING_VALUE)
         self.assertTrue(sm.editing_value)
 
+        sm.update_state(State_Machine.APA_SKILL_LEVEL_P1)
+        self.assertTrue(sm.apa_skill_level_p1)
+
+        sm.update_state(State_Machine.VICTORY)
+        self.assertTrue(sm.victory)
+
     def test_game_stats_defaults(self):
         game = Game_Stats()
         self.assertEqual(game.profile_based_countdown, 0)
         self.assertEqual(game.inning_counter, 1.0)
         self.assertEqual(game.game_profiles["APA"]["timer_duration"], 20)
         self.assertTrue(game.extension_available)
+        self.assertEqual(game.player_1_skill_level, 0)
+        self.assertEqual(game.player_1_target, 0)
+        self.assertEqual(game.match_type, "9-Ball")
 
     def test_game_stats_menu_update(self):
         # Mock dependencies

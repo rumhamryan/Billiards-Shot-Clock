@@ -117,6 +117,18 @@ class TestDisplay(unittest.IsolatedAsyncioTestCase):
         await display.enter_shot_clock(self.sm, self.game, self.oled)
         self.assertTrue(self.game.player_1_shooting)
 
+    async def test_render_skill_level_selection(self):
+        self.game.temp_setting_value = 5
+        await display.render_skill_level_selection(self.sm, self.game, self.oled, 1)
+        self.oled.text_scaled.assert_any_call("Player 1", 20, 10, 1)
+        self.oled.text_scaled.assert_any_call("Skill Level:", 15, 25, 1)
+        self.oled.text_scaled.assert_any_call("5", 50, 40, 3)
+
+    async def test_render_victory(self):
+        await display.render_victory(self.sm, self.game, self.oled, 2)
+        self.oled.text_scaled.assert_any_call("VICTORY!", 10, 10, 2)
+        self.oled.text_scaled.assert_any_call("Player 2", 0, 35, 2)
+
     async def test_render_profile_selection(self):
         self.game.game_profiles = {"A": {}}
         self.game.profile_names = ["A"]

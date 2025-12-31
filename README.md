@@ -35,39 +35,36 @@ A high-performance, responsive shot clock for billiards (pool) designed for the 
 
 ### Key Features
 - **Event-Driven Core**: Uses `uasyncio` to manage a central event loop. Logic only runs when an event (Button Press, Timer Tick) occurs, saving power and improving responsiveness.
+- **APA Match Scoring**: Integrated scoring for APA 9-Ball and 8-Ball. Features skill level selection, victory threshold calculation via `lib/rules.json`, and victory notifications.
 - **Dedicated Audio**: Audio processing is offloaded to **Core 1** via `_thread` to ensure glitch-free beeps without affecting the UI.
 - **Async Interrupts**: Hardware interrupts trigger async tasks, eliminating wasteful polling loops.
-
-### Modular Codebase
-The project is split into logical modules for better maintainability:
-- `main.py`: The main entry point, initializing the event loop and background tasks.
-- `lib/hardware_config.py`: Centralized hardware constants (Pins, OLED regions).
-- `lib/models.py`: State Machine and Game Statistics data structures.
-- `lib/display.py`: Hardware abstraction layer for rendering to OLED.
-- `lib/audio.py`: Hardware abstraction layer for playing Audio.
-- `lib/button_interrupt.py`: Handles hardware IRQs and debouncing, converting physical presses into async events.
-- `lib/button_logic.py`: Pure logic layer defining game rules and state transitions.
 
 ---
 
 ## How to Use
 
 1. **Profile Selection**: On boot, use **Up/Down** to cycle through profiles (APA, WNT, BCA, Timeouts). Press **Make** to select.
+   - **APA**: After selection, use **Up/Down** and **Make** to set the Skill Level for Player 1 and then Player 2. Victory targets are calculated automatically.
 2. **Shot Clock**:
-   - **Make**: Stops the timer and resets it for the next shot.
+   - **Make**: Stops the timer and resets it for the next shot. In **APA** mode, this also increments the shooting player's score.
    - **Up**: Uses an extension (if available for the selected profile).
-   - **Miss**: Ends the turn and increments the inning counter.
+   - **Miss**: Ends the current turn and switches the shooting player.
 3. **Game Menu**: Press **Miss** while the clock is idle to access settings:
-   - Adjust Inning Counter.
-   - Adjust Rack Counter.
-   - Toggle Mute (Speaker).
+   - **Adjust Score/Inning**: Manually edit Player 1 (Inning) or Player 2 (Rack) values.
+   - **Toggle Mute**: Enable/Disable the speaker.
+   - **Exit Match**: Return to the profile selection screen.
+
+---
+
+## Victory
+When a player reaches their calculated point target in **APA** mode, the screen will flash "VICTORY!" along with the winning player's number. Press **Make** to return to the profile selection menu.
 
 ---
 
 ## Development & Installation
 
 ### Prerequisites
-- [MicroPython](https://micropython.org/download/RPI_PICO/) installed on the Pico.
+- **MicroPython**: This project requires a specific forked version of MicroPython that includes optimized framebuf support. You can find it here: [micropython-framebuf-fork](https://github.com/rumhamryan/micropython-framebuf-fork).
 - All files from the `lib/` folder must be uploaded to the Pico's `/lib` directory.
 - `beep.wav` must be uploaded to the root directory.
 

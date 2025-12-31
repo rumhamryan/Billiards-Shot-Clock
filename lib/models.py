@@ -1,11 +1,14 @@
 class State_Machine:
     PROFILE_SELECTION = "profile_selection"
+    APA_SKILL_LEVEL_P1 = "apa_skill_level_p1"
+    APA_SKILL_LEVEL_P2 = "apa_skill_level_p2"
     SHOT_CLOCK_IDLE = "shot_clock_idle"
     COUNTDOWN_IN_PROGRESS = "countdown_in_progress"
     COUNTDOWN_COMPLETE = "countdown_complete"
     MENU = "menu"
     EDITING_VALUE = "editing_value"
     EXIT_MATCH_CONFIRMATION = "exit_match_confirmation"
+    VICTORY = "victory"
 
     def __init__(self, initial_state=PROFILE_SELECTION):
         self.state = initial_state
@@ -17,6 +20,14 @@ class State_Machine:
     @property
     def profile_selection(self):
         return self.state == self.PROFILE_SELECTION
+
+    @property
+    def apa_skill_level_p1(self):
+        return self.state == self.APA_SKILL_LEVEL_P1
+
+    @property
+    def apa_skill_level_p2(self):
+        return self.state == self.APA_SKILL_LEVEL_P2
 
     @property
     def shot_clock_idle(self):
@@ -42,6 +53,10 @@ class State_Machine:
     def exit_match_confirmation(self):
         return self.state == self.EXIT_MATCH_CONFIRMATION
 
+    @property
+    def victory(self):
+        return self.state == self.VICTORY
+
 
 class Game_Stats:
     def __init__(self):
@@ -52,10 +67,15 @@ class Game_Stats:
         self.extension_used = False
         self.player_1_shooting = True
         self.player_1_extension_available = True
+        self.player_1_skill_level = 0
         self.player_1_score = 0
+        self.player_1_target = 0
         self.player_2_shooting = False
         self.player_2_extension_available = True
+        self.player_2_skill_level = 0
         self.player_2_score = 0
+        self.player_2_target = 0
+        self.match_type = "9-Ball"  # Default to 9-Ball
         self.inning_counter = 1.0
         self.rack_counter = 1
         self.break_shot = True

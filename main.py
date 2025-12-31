@@ -91,6 +91,18 @@ async def _handle_ui_blink(blink_off):
         else:
             display.display_shape(OLED, "rect", 8, 40, 8, 8, True)
 
+    elif state_machine.victory:
+        if blink_off:
+            display.display_clear(OLED, "everything")
+        else:
+            # We don't easily know who won here, but render_victory was called.
+            # We can just re-render or assume the winner is stored.
+            # For simplicity, let's just not clear it if we want it to blink.
+            # Actually, render_victory is async, we can call it if we store winner.
+            # Let's just store the winner in Game_Stats for blinking.
+            winner = 1 if game.player_1_score >= game.player_1_target else 2
+            await display.render_victory(state_machine, game, OLED, winner)
+
     return not blink_off
 
 
@@ -128,6 +140,7 @@ async def timer_worker():
             state_machine.profile_selection
             or state_machine.menu
             or state_machine.editing_value
+            or state_machine.victory
         ) and utime.ticks_diff(now, blink_checker) > 500:
             blink_checker = now
             blink_off = await _handle_ui_blink(blink_off)
@@ -191,6 +204,12 @@ class HardwareWrapper:
 
     async def render_exit_confirmation(self, sm, g):
         await display.render_exit_confirmation(sm, g, self.oled)
+
+    async def render_skill_level_selection(self, sm, g, player_num):
+        await display.render_skill_level_selection(sm, g, self.oled, player_num)
+
+    async def render_victory(self, sm, g, winner_num):
+        await display.render_victory(sm, g, self.oled, winner_num)
 
 
 hw_wrapper = HardwareWrapper(OLED)

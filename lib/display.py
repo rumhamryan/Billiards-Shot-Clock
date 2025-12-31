@@ -62,28 +62,26 @@ async def enter_idle_mode(state_machine, game, oled):
     else:
         game.speaker_5_count = 4
         if game.selected_profile == "APA":
-            val0, val1 = game.player_1_score, game.player_2_score
+            score_1, target_1 = game.player_1_score, game.player_1_target
+            shift = 0
+            if score_1 < 10:
+                shift = 7
+            display_text(oled, state_machine, f"{score_1}", 0, 57, 1, False)
+            display_text(oled, state_machine, "/", 15 - shift, 57, 1, False)
+            display_text(oled, state_machine, f"{target_1}", 23 - shift, 57, 1, False)
+
+            display_text(oled, state_machine, "Score", 45, 57, 1, False)
+
+            score_2, target_2 = game.player_2_score, game.player_2_target
+            if score_2 < 10:
+                shift = 7
+            display_text(oled, state_machine, f"{score_2}", 89 + shift, 57, 1, False)
+            display_text(oled, state_machine, "/", 104, 57, 1, False)
+            display_text(oled, state_machine, f"{target_2}", 112, 57, 1, False)
         else:
-            val0, val1 = int(game.inning_counter), int(game.rack_counter)
-
-        display_text(oled, state_machine, str(val0), 2, 57, 1, True)
-        # Render prefix and val1 separately to allow pixel-perfect shift for val1 only
-        display_text(
-            oled,
-            state_machine,
-            "---Score---",
-            20,
-            57,
-            1,
-            False,
-        )
-
-        # Calculate position for val1 (assuming ~6 pixels per character + spacing)
-        x_val1 = 112 if val0 < 10 else 110
-        if val1 >= 10:
-            x_val1 -= 2
-
-        display_text(oled, state_machine, str(val1), x_val1, 57, 1, True)
+            racks, innings = game.rack_counter, int(game.inning_counter)
+            display_text(oled, state_machine, f"Rack:{racks}", 0, 57, 1, False)
+            display_text(oled, state_machine, f"Inning:{innings}", 57, 57, 1, False)
 
         if game.break_shot:
             game.countdown = game.profile_based_countdown + game.extension_duration
@@ -121,6 +119,27 @@ async def render_profile_selection(state_machine, game, oled, clear_all=False):
 
     display_text(oled, state_machine, "Select Game:", 15, 10, 1, False)
     display_text(oled, state_machine, str(name), 25, 30, 3, True)
+
+
+async def render_skill_level_selection(state_machine, game, oled, player_num):
+    """Renders the skill level selection screen for a player."""
+    display_clear(oled, "everything", send_payload=False)
+
+    display_text(oled, state_machine, f"Player {player_num}", 20, 10, 1, False)
+    display_text(oled, state_machine, "Skill Level:", 15, 25, 1, False)
+
+    sl = game.temp_setting_value
+    display_text(oled, state_machine, str(sl), 50, 40, 3, True)
+
+
+async def render_victory(state_machine, game, oled, winner_num):
+    """Renders the victory screen."""
+    display_clear(oled, "everything", send_payload=False)
+
+    display_text(oled, state_machine, "VICTORY!", 10, 10, 2, False)
+    display_text(oled, state_machine, f"Player {winner_num}", 0, 35, 2, False)
+
+    oled.show()
 
 
 async def render_menu(state_machine, game, oled):
