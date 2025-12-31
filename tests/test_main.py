@@ -97,15 +97,22 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
     async def test_main_function(self):
         import contextlib
 
+        # We must use AsyncMock because main.py awaits this call.
+        # To avoid the "never awaited" warning, we can manually await the mock
+        # if it's called, or just accept the warning in this specific case.
+        # However, patching it to a sync mock results in TypeError.
+
         with (
             patch("main.asyncio.sleep", side_effect=asyncio.CancelledError),
             patch("main.asyncio.create_task") as mock_task,
+            patch("main.timer_worker") as mock_worker,
             contextlib.suppress(asyncio.CancelledError),
         ):
             await main.main()
 
         mock_task.assert_called_once()
-        main.display.render_profile_selection.assert_called()  # type: ignore
+        mock_worker.assert_called_once()
+        main.display.render_profile_selection.assert_called_once()  # type: ignore
 
     async def test_callbacks(self):
         # Mock logic handler

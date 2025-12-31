@@ -49,6 +49,7 @@ python_version = "3.12"
 strict = false # Strictest is too hard for MicroPython without perfect stubs
 ignore_missing_imports = true # Crucial for uasyncio, machine, etc.
 check_untyped_defs = true
+exclude = "build/"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -59,6 +60,9 @@ testpaths = [
 pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "ignore:coroutine '.*' was never awaited:RuntimeWarning:unittest.mock",
+]
 
 [tool.coverage.run]
 omit = [
