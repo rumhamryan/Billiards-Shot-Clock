@@ -159,6 +159,6 @@ async def handle_miss(state_machine, game, hw_module):
         await hw_module.enter_idle_mode(state_machine, game)
 
     elif state == State_Machine.EDITING_VALUE:
-        # Cancel editing
+        # Cancel Edit
         state_machine.update_state(State_Machine.MENU)
         await hw_module.render_menu(state_machine, game)

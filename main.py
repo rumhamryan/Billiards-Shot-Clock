@@ -157,7 +157,8 @@ async def on_down():
 
 async def on_miss():
     global inactivity_check
-    inactivity_check = utime.ticks_ms()
+    if not state_machine.profile_selection:
+        inactivity_check = utime.ticks_ms()
     await logic.handle_miss(state_machine, game, hw_wrapper)
 
 

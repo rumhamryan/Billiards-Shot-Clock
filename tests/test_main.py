@@ -137,6 +137,28 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
             # Inactivity check should update
             self.assertIsNotNone(main.inactivity_check)
 
+    async def test_on_miss_inactivity_handling(self):
+        # 1. State: PROFILE_SELECTION (Should NOT update)
+        main.state_machine.update_state(main.State_Machine.PROFILE_SELECTION)
+        initial_check = 100
+        main.inactivity_check = initial_check
+
+        with (
+            patch("main.utime.ticks_ms", return_value=200),
+            patch("lib.button_logic.handle_miss", new_callable=AsyncMock),
+        ):
+            await main.on_miss()
+            self.assertEqual(main.inactivity_check, initial_check)
+
+        # 2. State: SHOT_CLOCK_IDLE (Should update)
+        main.state_machine.update_state(main.State_Machine.SHOT_CLOCK_IDLE)
+        with (
+            patch("main.utime.ticks_ms", return_value=300),
+            patch("lib.button_logic.handle_miss", new_callable=AsyncMock),
+        ):
+            await main.on_miss()
+            self.assertEqual(main.inactivity_check, 300)
+
     async def test_hardware_wrapper(self):
         wrapper = main.hw_wrapper
         sm = main.state_machine
