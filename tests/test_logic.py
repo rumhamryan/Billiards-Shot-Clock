@@ -245,6 +245,8 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.game.extension_available = True
         self.game.countdown = 10
         self.game.extension_duration = 20
+        self.game.player_1_shooting = True
+        self.game.player_1_timeouts_remaining = 1
 
         await logic.handle_up(self.sm, self.game, self.hw)
 

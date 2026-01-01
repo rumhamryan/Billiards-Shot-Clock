@@ -4,28 +4,49 @@ from lib.models import State_Machine
 
 
 def _calculate_apa_targets(game):
-    """Calculates player targets based on skill levels and rules.json."""
+    """Calculates player targets and timeouts based on skill levels and rules.json."""
     try:
         with open("lib/rules.json") as f:
             rules = json.load(f)
 
+        match_rules = rules.get(game.match_type, {})
+
+        # Targets
         if game.match_type == "9-Ball":
-            game.player_1_target = rules["9-Ball"]["targets"][
-                str(game.player_1_skill_level)
-            ]
-            game.player_2_target = rules["9-Ball"]["targets"][
-                str(game.player_2_skill_level)
-            ]
+            game.player_1_target = match_rules["targets"][str(game.player_1_skill_level)]
+            game.player_2_target = match_rules["targets"][str(game.player_2_skill_level)]
         elif game.match_type == "8-Ball":
-            race = rules["8-Ball"]["race_grid"][str(game.player_1_skill_level)][
-                str(game.player_2_skill_level)
-            ]
+            p1_sl = str(game.player_1_skill_level)
+            p2_sl = str(game.player_2_skill_level)
+            race = match_rules["race_grid"][p1_sl][p2_sl]
             game.player_1_target = race[0]
             game.player_2_target = race[1]
+
+        # Timeouts
+        timeout_rules = match_rules.get("timeouts", {"3": 2, "4": 1})
+
+        # Player 1
+        if game.player_1_skill_level <= 3:
+            game.player_1_timeouts_per_rack = timeout_rules["3"]
+        else:
+            game.player_1_timeouts_per_rack = timeout_rules["4"]
+        game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
+
+        # Player 2
+        if game.player_2_skill_level <= 3:
+            game.player_2_timeouts_per_rack = timeout_rules["3"]
+        else:
+            game.player_2_timeouts_per_rack = timeout_rules["4"]
+        game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
+
     except (OSError, KeyError):
         # Fallback defaults if file missing or invalid SL
         game.player_1_target = 14
         game.player_2_target = 14
+        game.player_1_timeouts_per_rack = 1
+        game.player_1_timeouts_remaining = 1
+        game.player_2_timeouts_per_rack = 1
+        game.player_2_timeouts_remaining = 1
 
 
 async def _handle_make_profile_selection(state_machine, game, hw_module):
@@ -204,6 +225,10 @@ async def handle_new_rack(state_machine, game, hw_module):
     # Update menu values for non-APA
     if game.selected_profile != "APA":
         game.menu_values[1] = game.rack_counter
+    else:
+        # Reset APA timeouts for new rack
+        game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
+        game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
 
     await hw_module.enter_idle_mode(state_machine, game)
 
@@ -221,8 +246,19 @@ def _process_extension(game):
             game.player_2_extension_available = False
         can_extend = True
     elif game.selected_profile == "APA" and game.extension_available:
-        game.extension_available, game.extension_used = False, True
-        can_extend = True
+        # Check if current player has timeouts remaining
+        has_timeout = False
+        if game.player_1_shooting:
+            if game.player_1_timeouts_remaining > 0:
+                has_timeout = True
+                game.player_1_timeouts_remaining -= 1
+        elif game.player_2_timeouts_remaining > 0:
+            has_timeout = True
+            game.player_2_timeouts_remaining -= 1
+
+        if has_timeout:
+            game.extension_available, game.extension_used = False, True
+            can_extend = True
 
     if can_extend:
         game.countdown += game.extension_duration

@@ -70,7 +70,7 @@ async def enter_idle_mode(state_machine, game, oled):
             display_text(oled, state_machine, "/", 15 - shift, 57, 1, False)
             display_text(oled, state_machine, f"{target_1}", 23 - shift, 57, 1, False)
 
-            display_text(oled, state_machine, "Score", 45, 57, 1, False)
+            # display_text(oled, state_machine, "Score", 44, 57, 1, False)
 
             score_2, target_2 = game.player_2_score, game.player_2_target
             if score_2 < 10:
@@ -78,6 +78,13 @@ async def enter_idle_mode(state_machine, game, oled):
             display_text(oled, state_machine, f"{score_2}", 89 + shift, 57, 1, False)
             display_text(oled, state_machine, "/", 104, 57, 1, False)
             display_text(oled, state_machine, f"{target_2}", 112, 57, 1, False)
+
+            # Draw underline for shooting player
+            if game.inning_counter % 1 == 0:
+                display_text(oled, state_machine, "<", 34, 57, 1, False)
+            else:
+                display_text(oled, state_machine, ">", 87, 57, 1, False)
+
         else:
             racks, innings = game.rack_counter, int(game.inning_counter)
             display_text(oled, state_machine, f"Rack:{racks}", 0, 57, 1, False)

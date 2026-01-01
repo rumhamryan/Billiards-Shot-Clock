@@ -75,6 +75,10 @@ class Game_Stats:
         self.player_2_skill_level = 0
         self.player_2_score = 0
         self.player_2_target = 0
+        self.player_1_timeouts_per_rack = 0
+        self.player_1_timeouts_remaining = 0
+        self.player_2_timeouts_per_rack = 0
+        self.player_2_timeouts_remaining = 0
         self.match_type = "9-Ball"  # Default to 9-Ball
         self.inning_counter = 1.0
         self.rack_counter = 1
