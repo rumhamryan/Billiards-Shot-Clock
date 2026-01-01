@@ -25,6 +25,8 @@ DISPLAY_REGIONS = {
     "profile_selection": (0, 20, 128, 44),
     "inning_counter": (55, 55, 17, 9),
     "rack_counter": (113, 57, 14, 8),
+    "timeout_counter_1": (38, 59, 4, 4),
+    "timeout_counter_2": (80, 59, 4, 4),
     "shot_clock_full": (0, 0, 125, 56),
     "shot_clock_digit_1": (0, 0, 62, 56),
     "shot_clock_digit_2": (62, 0, 66, 56),

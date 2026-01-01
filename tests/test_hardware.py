@@ -43,6 +43,22 @@ class TestDisplay(unittest.IsolatedAsyncioTestCase):
         display.display_shape(self.oled, "line", 0, 0, 10, 10)
         self.oled.line.assert_called_once()
 
+    def test_display_shape_rect_no_fill(self):
+        # Reset mock to clear previous calls
+        self.oled.line.reset_mock()
+        display.display_shape(self.oled, "rect", 10, 20, 30, 40, fill=False)
+        # Should call line 4 times
+        self.assertEqual(self.oled.line.call_count, 4)
+        # Check specific calls
+        # Top line: (x, y, x+w-1, y) -> (10, 20, 39, 20)
+        self.oled.line.assert_any_call(10, 20, 39, 20, self.oled.white)
+        # Bottom line: (x, y+h-1, x+w-1, y+h-1) -> (10, 59, 39, 59)
+        self.oled.line.assert_any_call(10, 59, 39, 59, self.oled.white)
+        # Left line: (x, y, x, y+h-1) -> (10, 20, 10, 59)
+        self.oled.line.assert_any_call(10, 20, 10, 59, self.oled.white)
+        # Right line: (x+w-1, y, x+w-1, y+h-1) -> (39, 20, 39, 59)
+        self.oled.line.assert_any_call(39, 20, 39, 59, self.oled.white)
+
     def test_display_clear(self):
         display.display_clear(self.oled, "everything")
         self.oled.rect.assert_called()  # Should draw black rect

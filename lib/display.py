@@ -19,12 +19,18 @@ def display_text(oled, state_machine, payload, x, y, font_size, send_payload=Tru
         oled.show()
 
 
-def display_shape(oled, payload, x, y, width, height, send_payload=True):
+def display_shape(oled, payload, x, y, width, height, fill=True, send_payload=True):
     """Draws a shape on the OLED display."""
     if payload == "line":
         oled.line(x, y, width, height, oled.white)
     elif payload == "rect":
-        oled.rect(x, y, width, height, oled.white, True)
+        if not fill:
+            oled.line(x, y, x + width - 1, y, oled.white)
+            oled.line(x, y, x, y + height - 1, oled.white)
+            oled.line(x, y + height - 1, x + width - 1, y + height - 1, oled.white)
+            oled.line(x + width - 1, y, x + width - 1, y + height - 1, oled.white)
+        else:
+            oled.rect(x, y, width, height, oled.white, True)
 
     if send_payload:
         oled.show()
@@ -39,6 +45,26 @@ def display_clear(oled, *regions, send_payload=True):
 
     if send_payload:
         oled.show()
+
+
+def display_timeouts(oled, state_machine, game, send_payload=True):
+    """Draws the timeouts sections of the OLED display."""
+    # player_1 timeouts
+    if game.player_1_timeouts_remaining > 1:
+        display_shape(oled, "rect", 38, 59, 4, 4, True, False)
+        display_shape(oled, "rect", 46, 59, 4, 4, True, False)
+    elif game.player_1_timeouts_remaining == 1:
+        display_shape(oled, "rect", 42, 59, 4, 4, True, False)
+    else:
+        display_clear(oled, "timeout_counter_1", send_payload=True)
+
+    if game.player_2_timeouts_remaining > 1:
+        display_shape(oled, "rect", 80, 59, 4, 4, True, False)
+        display_shape(oled, "rect", 88, 59, 4, 4, True, False)
+    elif game.player_2_timeouts_remaining == 1:
+        display_shape(oled, "rect", 84, 59, 4, 4, True, False)
+    else:
+        display_clear(oled, "timeout_counter_2", send_payload=True)
 
 
 def process_timer_duration(duration):
@@ -62,6 +88,7 @@ async def enter_idle_mode(state_machine, game, oled):
     else:
         game.speaker_5_count = 4
         if game.selected_profile == "APA":
+            # Draw player_1 score/target_score
             score_1, target_1 = game.player_1_score, game.player_1_target
             shift = 0
             if score_1 < 10:
@@ -70,8 +97,7 @@ async def enter_idle_mode(state_machine, game, oled):
             display_text(oled, state_machine, "/", 15 - shift, 57, 1, False)
             display_text(oled, state_machine, f"{target_1}", 23 - shift, 57, 1, False)
 
-            # display_text(oled, state_machine, "Score", 44, 57, 1, False)
-
+            # Draw player_2 score/target_score
             score_2, target_2 = game.player_2_score, game.player_2_target
             if score_2 < 10:
                 shift = 7
@@ -79,11 +105,16 @@ async def enter_idle_mode(state_machine, game, oled):
             display_text(oled, state_machine, "/", 104, 57, 1, False)
             display_text(oled, state_machine, f"{target_2}", 112, 57, 1, False)
 
-            # Draw underline for shooting player
+            # Draw the current shooter indicator
             if game.inning_counter % 1 == 0:
-                display_text(oled, state_machine, "<", 34, 57, 1, False)
+                display_shape(oled, "rect", 57, 57, 7, 7, True, False)
+                display_shape(oled, "rect", 65, 57, 7, 7, False, False)
             else:
-                display_text(oled, state_machine, ">", 87, 57, 1, False)
+                display_shape(oled, "rect", 57, 57, 7, 7, False, False)
+                display_shape(oled, "rect", 65, 57, 7, 7, True, False)
+
+            # Draw timeouts indicators
+            display_timeouts(oled, state_machine, game, False)
 
         else:
             racks, innings = game.rack_counter, int(game.inning_counter)
