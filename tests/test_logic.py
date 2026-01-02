@@ -23,6 +23,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.hw.render_skill_level_selection = AsyncMock()
         self.hw.render_victory = AsyncMock()
         self.hw.render_game_type_selection = AsyncMock()
+        self.hw.render_wnt_target_selection = AsyncMock()
         self.hw.render_message = AsyncMock()
 
     # --- HANDLE MAKE ---
@@ -34,11 +35,10 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
-        self.assertTrue(self.sm.game_on)
+        self.assertEqual(self.sm.state, State_Machine.WNT_TARGET_SELECTION)
+        self.assertFalse(self.sm.game_on)
         self.assertEqual(self.game.selected_profile, "WNT")
-        self.assertEqual(self.game.profile_based_countdown, 30)
-        self.assertIsInstance(self.game.rules, StandardRules)
-        self.hw.enter_idle_mode.assert_called_once()
+        self.hw.render_wnt_target_selection.assert_called_once()
 
     async def test_make_profile_selection_apa_transitions_to_sl(self):
         self.sm.update_state(State_Machine.PROFILE_SELECTION)
@@ -294,13 +294,14 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.game.rules = StandardRules()
         self.game.selected_profile = "WNT"
         self.game.player_1_shooting = True
-        self.game.player_1_extension_available = True
+        self.game.player_1_timeouts_remaining = 1
+        self.game.extension_available = True
         self.game.countdown = 10
         self.game.extension_duration = 30
 
         await logic.handle_up(self.sm, self.game, self.hw)
 
-        self.assertFalse(self.game.player_1_extension_available)
+        self.assertEqual(self.game.player_1_timeouts_remaining, 0)
         self.assertEqual(self.game.countdown, 40)
 
     async def test_up_menu(self):

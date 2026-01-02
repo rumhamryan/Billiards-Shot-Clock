@@ -27,14 +27,14 @@ class GameRules:
         p2_can = game.player_2_shooting and game.player_2_extension_available
 
         can_extend = False
-        if game.selected_profile in ["WNT", "BCA"] and (p1_can or p2_can):
+        if game.selected_profile == "BCA" and (p1_can or p2_can):
             if game.player_1_shooting:
                 game.player_1_extension_available = False
             else:
                 game.player_2_extension_available = False
             game.extension_used = True
             can_extend = True
-        elif game.selected_profile == "APA" and game.extension_available:
+        elif game.selected_profile in ["APA", "WNT"] and game.extension_available:
             # Check if current player has timeouts remaining
             has_timeout = False
             if game.player_1_shooting:
@@ -73,12 +73,12 @@ class GameRules:
         game.extension_available = True
 
         # Refund the extension resource
-        if game.selected_profile in ["WNT", "BCA"]:
+        if game.selected_profile == "BCA":
             if game.player_1_shooting:
                 game.player_1_extension_available = True
             else:
                 game.player_2_extension_available = True
-        elif game.selected_profile == "APA":
+        elif game.selected_profile in ["APA", "WNT"]:
             if game.player_1_shooting:
                 game.player_1_timeouts_remaining += 1
             else:
@@ -260,6 +260,9 @@ class EightBallRules(GameRules):
     async def handle_down(self, state_machine, game, hw_module):
         state = state_machine.state
         if state == State_Machine.SHOT_CLOCK_IDLE:
+            # WNT cannot lose a rack, only win.
+            if game.selected_profile == "WNT":
+                return
             # Trigger LOSE RACK Confirmation
             game.pending_rack_result = "lose"
             state_machine.update_state(State_Machine.CONFIRM_RACK_END)

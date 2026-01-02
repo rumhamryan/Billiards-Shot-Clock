@@ -139,7 +139,7 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
         # Test base class logic via StandardRules
         rule = StandardRules()
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
-        self.game.selected_profile = "WNT"
+        self.game.selected_profile = "BCA"
         self.game.player_1_shooting = True
         self.game.player_1_extension_available = True
         self.game.extension_duration = 30
@@ -148,6 +148,21 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
         await rule.handle_up(self.sm, self.game, self.hw)
 
         self.assertFalse(self.game.player_1_extension_available)
+        self.assertEqual(self.game.countdown, 40)
+
+    async def test_extension_logic_wnt(self):
+        rule = StandardRules()
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.selected_profile = "WNT"
+        self.game.player_1_shooting = True
+        self.game.player_1_timeouts_remaining = 1
+        self.game.extension_available = True
+        self.game.extension_duration = 30
+        self.game.countdown = 10
+
+        await rule.handle_up(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_1_timeouts_remaining, 0)
         self.assertEqual(self.game.countdown, 40)
 
     async def test_cancel_extension_logic_apa(self):

@@ -79,7 +79,7 @@ def render_scoreline(oled, state_machine, game, send_payload=True):
     """Renders the scoreline/bottom row based on the selected profile."""
     if game.timeouts_only:
         display_text(oled, state_machine, "Timeouts Mode", 12, 57, 1, False)
-    elif game.selected_profile == "APA":
+    elif game.selected_profile in ["APA", "WNT"]:
         # Draw player_1 score/target_score
         score_1, target_1 = game.player_1_score, game.player_1_target
         shift = 0
@@ -186,6 +186,19 @@ async def render_game_type_selection(state_machine, game, oled):
     # temp_setting_value: 0 for 8-Ball, 1 for 9-Ball
     game_type = "9-Ball" if game.temp_setting_value == 1 else "8-Ball"
     display_text(oled, state_machine, game_type, 15, 30, 2, True)
+
+
+async def render_wnt_target_selection(state_machine, game, oled):
+    """Renders the WNT target selection screen."""
+    display_clear(oled, "everything", send_payload=False)
+
+    display_text(oled, state_machine, "Race to", 35, 10, 1, False)
+
+    target = game.temp_setting_value
+    shift = 0
+    if target > 9:
+        shift = 12
+    display_text(oled, state_machine, str(target), 50 - shift, 30, 3, True)
 
 
 async def render_victory(state_machine, game, oled, winner_num):

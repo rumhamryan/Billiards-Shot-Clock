@@ -3,6 +3,7 @@ class State_Machine:
     APA_SKILL_LEVEL_P1 = "apa_skill_level_p1"
     APA_SKILL_LEVEL_P2 = "apa_skill_level_p2"
     APA_GAME_TYPE_SELECTION = "apa_game_type_selection"
+    WNT_TARGET_SELECTION = "wnt_target_selection"
     SHOT_CLOCK_IDLE = "shot_clock_idle"
     COUNTDOWN_IN_PROGRESS = "countdown_in_progress"
     COUNTDOWN_COMPLETE = "countdown_complete"
@@ -38,6 +39,10 @@ class State_Machine:
     @property
     def apa_game_type_selection(self):
         return self.state == self.APA_GAME_TYPE_SELECTION
+
+    @property
+    def wnt_target_selection(self):
+        return self.state == self.WNT_TARGET_SELECTION
 
     @property
     def shot_clock_idle(self):

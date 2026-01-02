@@ -67,6 +67,20 @@ async def _handle_make_profile_selection(state_machine, game, hw_module):
         await hw_module.render_skill_level_selection(state_machine, game, 1)
         return
 
+    if selected_name == "WNT":
+        state_machine.update_state(State_Machine.WNT_TARGET_SELECTION)
+        # Load targets from rules.json
+        try:
+            with open("lib/rules.json") as f:
+                rules = json.load(f)
+            targets = rules.get("WNT", {}).get("targets", [9])
+            game.temp_setting_value = targets[2] if len(targets) > 2 else targets[0]
+        except (OSError, KeyError):
+            game.temp_setting_value = 9
+
+        await hw_module.render_wnt_target_selection(state_machine, game)
+        return
+
     # Assign Standard Rules for non-APA profiles
     game.rules = StandardRules()
 
@@ -126,6 +140,37 @@ async def _handle_make_game_type_selection(state_machine, game, hw_module):
         None,
         game.speaker_muted,
     ]
+    state_machine.game_on = True
+    state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
+    await hw_module.enter_idle_mode(state_machine, game)
+
+
+async def _handle_make_wnt_target_selection(state_machine, game, hw_module):
+    """Handles MAKE button during WNT target selection."""
+    game.player_1_target = game.temp_setting_value
+    game.player_2_target = game.temp_setting_value
+
+    # WNT uses Games Won scoring similar to 8-Ball
+    game.rules = EightBallRules()
+
+    # Timeouts: 1 per rack
+    game.player_1_timeouts_per_rack = 1
+    game.player_1_timeouts_remaining = 1
+    game.player_2_timeouts_per_rack = 1
+    game.player_2_timeouts_remaining = 1
+
+    game.player_1_score = 0
+    game.player_2_score = 0
+
+    # Menu setup
+    game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
+    game.menu_values = [
+        game.player_1_score,
+        game.player_2_score,
+        None,
+        game.speaker_muted,
+    ]
+
     state_machine.game_on = True
     state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
     await hw_module.enter_idle_mode(state_machine, game)
@@ -201,9 +246,10 @@ async def _handle_make_confirm_rack_end(state_machine, game, hw_module):
     # Update Rack
     game.rack_counter += 1
 
-    # Reset Timeouts (APA)
-    game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
-    game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
+    # Reset Timeouts (APA/WNT)
+    if game.selected_profile in ["APA", "WNT"]:
+        game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
+        game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
 
     # Update Menu Values
     game.menu_values[0] = game.player_1_score
@@ -252,6 +298,9 @@ async def handle_make(state_machine, game, hw_module):
     elif state == State_Machine.APA_GAME_TYPE_SELECTION:
         await _handle_make_game_type_selection(state_machine, game, hw_module)
 
+    elif state == State_Machine.WNT_TARGET_SELECTION:
+        await _handle_make_wnt_target_selection(state_machine, game, hw_module)
+
     elif state == State_Machine.VICTORY:
         # After victory, return to profile selection
         game.reset()
@@ -279,15 +328,66 @@ async def handle_new_rack(state_machine, game, hw_module):
     game.rack_counter += 1
     game.break_shot = True
 
-    # Update menu values for non-APA
-    if game.selected_profile != "APA":
+    # Update menu values for non-APA/WNT
+    if game.selected_profile not in ["APA", "WNT"]:
         game.menu_values[1] = game.rack_counter
     else:
-        # Reset APA timeouts for new rack
+        # Reset APA/WNT timeouts for new rack
         game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
         game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
 
     await hw_module.enter_idle_mode(state_machine, game)
+
+
+async def _handle_up_wnt_target_selection(state_machine, game, hw_module):
+    """Handles UP button during WNT target selection."""
+    try:
+        with open("lib/rules.json") as f:
+            rules = json.load(f)
+        targets = rules.get("WNT", {}).get("targets", [5, 7, 9, 11, 13])
+        try:
+            idx = targets.index(game.temp_setting_value)
+            game.temp_setting_value = targets[(idx + 1) % len(targets)]
+        except ValueError:
+            game.temp_setting_value = targets[0]
+    except (OSError, KeyError):
+        game.temp_setting_value = (game.temp_setting_value % 20) + 1
+
+    await hw_module.render_wnt_target_selection(state_machine, game)
+
+
+async def _handle_down_wnt_target_selection(state_machine, game, hw_module):
+    """Handles DOWN button during WNT target selection."""
+    try:
+        with open("lib/rules.json") as f:
+            rules = json.load(f)
+        targets = rules.get("WNT", {}).get("targets", [5, 7, 9, 11, 13])
+        try:
+            idx = targets.index(game.temp_setting_value)
+            game.temp_setting_value = targets[(idx - 1) % len(targets)]
+        except ValueError:
+            game.temp_setting_value = targets[-1]
+    except (OSError, KeyError):
+        game.temp_setting_value = max(1, game.temp_setting_value - 1)
+
+    await hw_module.render_wnt_target_selection(state_machine, game)
+
+
+async def _handle_up_editing(state_machine, game, hw_module):
+    """Handles UP button during value editing."""
+    sel = game.menu_items[game.current_menu_index]
+    if sel == "Mute":
+        game.temp_setting_value = not game.temp_setting_value
+    else:
+        game.temp_setting_value += 1
+    await hw_module.render_menu(state_machine, game)
+
+
+async def _handle_up_apa_skill(state_machine, game, hw_module):
+    """Handles UP button during APA skill level selection."""
+    game.temp_setting_value = (game.temp_setting_value % 9) + 1
+    player_num = 1 if state_machine.apa_skill_level_p1 else 2
+    await hw_module.render_skill_level_selection(state_machine, game, player_num)
 
 
 async def handle_up(state_machine, game, hw_module):
@@ -305,24 +405,18 @@ async def handle_up(state_machine, game, hw_module):
         await hw_module.render_menu(state_machine, game)
 
     elif state == State_Machine.EDITING_VALUE:
-        # Increment value
-        sel = game.menu_items[game.current_menu_index]
-        if sel == "Mute":
-            game.temp_setting_value = not game.temp_setting_value
-        else:
-            game.temp_setting_value += 1
-        await hw_module.render_menu(state_machine, game)
+        await _handle_up_editing(state_machine, game, hw_module)
 
     elif state in [State_Machine.APA_SKILL_LEVEL_P1, State_Machine.APA_SKILL_LEVEL_P2]:
-        # Skill levels 1-9 wrapping
-        game.temp_setting_value = (game.temp_setting_value % 9) + 1
-        player_num = 1 if state == State_Machine.APA_SKILL_LEVEL_P1 else 2
-        await hw_module.render_skill_level_selection(state_machine, game, player_num)
+        await _handle_up_apa_skill(state_machine, game, hw_module)
 
     elif state == State_Machine.APA_GAME_TYPE_SELECTION:
         # Toggle between 0 (8-Ball) and 1 (9-Ball)
         game.temp_setting_value = 1 - game.temp_setting_value
         await hw_module.render_game_type_selection(state_machine, game)
+
+    elif state == State_Machine.WNT_TARGET_SELECTION:
+        await _handle_up_wnt_target_selection(state_machine, game, hw_module)
 
     # Delegate Game States to Rules
     elif (
@@ -334,6 +428,25 @@ async def handle_up(state_machine, game, hw_module):
         and game.rules
     ):
         await game.rules.handle_up(state_machine, game, hw_module)
+
+
+async def _handle_down_editing(state_machine, game, hw_module):
+    """Handles DOWN button during value editing."""
+    sel = game.menu_items[game.current_menu_index]
+    if sel == "Mute":
+        game.temp_setting_value = not game.temp_setting_value
+    else:
+        game.temp_setting_value = max(1, game.temp_setting_value - 1)
+    await hw_module.render_menu(state_machine, game)
+
+
+async def _handle_down_apa_skill(state_machine, game, hw_module):
+    """Handles DOWN button during APA skill level selection."""
+    game.temp_setting_value = game.temp_setting_value - 1
+    if game.temp_setting_value < 1:
+        game.temp_setting_value = 9
+    player_num = 1 if state_machine.apa_skill_level_p1 else 2
+    await hw_module.render_skill_level_selection(state_machine, game, player_num)
 
 
 async def handle_down(state_machine, game, hw_module):
@@ -351,26 +464,18 @@ async def handle_down(state_machine, game, hw_module):
         await hw_module.render_menu(state_machine, game)
 
     elif state == State_Machine.EDITING_VALUE:
-        # Decrement value
-        sel = game.menu_items[game.current_menu_index]
-        if sel == "Mute":
-            game.temp_setting_value = not game.temp_setting_value
-        else:
-            game.temp_setting_value = max(1, game.temp_setting_value - 1)
-        await hw_module.render_menu(state_machine, game)
+        await _handle_down_editing(state_machine, game, hw_module)
 
     elif state in [State_Machine.APA_SKILL_LEVEL_P1, State_Machine.APA_SKILL_LEVEL_P2]:
-        # Skill levels 1-9 wrapping (down)
-        game.temp_setting_value = game.temp_setting_value - 1
-        if game.temp_setting_value < 1:
-            game.temp_setting_value = 9
-        player_num = 1 if state == State_Machine.APA_SKILL_LEVEL_P1 else 2
-        await hw_module.render_skill_level_selection(state_machine, game, player_num)
+        await _handle_down_apa_skill(state_machine, game, hw_module)
 
     elif state == State_Machine.APA_GAME_TYPE_SELECTION:
         # Toggle between 0 (8-Ball) and 1 (9-Ball)
         game.temp_setting_value = 1 - game.temp_setting_value
         await hw_module.render_game_type_selection(state_machine, game)
+
+    elif state == State_Machine.WNT_TARGET_SELECTION:
+        await _handle_down_wnt_target_selection(state_machine, game, hw_module)
 
     # Delegate Game States to Rules
     elif (
@@ -382,6 +487,14 @@ async def handle_down(state_machine, game, hw_module):
         and game.rules
     ):
         await game.rules.handle_down(state_machine, game, hw_module)
+
+
+async def _handle_miss_skill_level(state_machine, game, hw_module):
+    """Handles MISS button during skill level selection."""
+    # Cancel Skill Level Selection -> Back to Profile Selection
+    game.profile_selection_index = 0
+    state_machine.update_state(State_Machine.PROFILE_SELECTION)
+    await hw_module.render_profile_selection(state_machine, game, clear_all=True)
 
 
 async def handle_miss(state_machine, game, hw_module):
@@ -409,16 +522,19 @@ async def handle_miss(state_machine, game, hw_module):
         await hw_module.render_menu(state_machine, game)
 
     elif state in [State_Machine.APA_SKILL_LEVEL_P1, State_Machine.APA_SKILL_LEVEL_P2]:
-        # Cancel Skill Level Selection -> Back to Profile Selection
-        game.profile_selection_index = 0
-        state_machine.update_state(State_Machine.PROFILE_SELECTION)
-        await hw_module.render_profile_selection(state_machine, game, clear_all=True)
+        await _handle_miss_skill_level(state_machine, game, hw_module)
 
     elif state == State_Machine.APA_GAME_TYPE_SELECTION:
         # Go back to P2 Skill Level Selection
         state_machine.update_state(State_Machine.APA_SKILL_LEVEL_P2)
         game.temp_setting_value = game.player_2_skill_level
         await hw_module.render_skill_level_selection(state_machine, game, 2)
+
+    elif state == State_Machine.WNT_TARGET_SELECTION:
+        # Go back to Profile Selection
+        state_machine.update_state(State_Machine.PROFILE_SELECTION)
+        game.profile_selection_index = game.profile_names.index("WNT")
+        await hw_module.render_profile_selection(state_machine, game, clear_all=True)
 
     # Delegate Game States to Rules
     elif (

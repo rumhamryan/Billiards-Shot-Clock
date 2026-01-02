@@ -213,6 +213,9 @@ class HardwareWrapper:
     async def render_game_type_selection(self, sm, g):
         await display.render_game_type_selection(sm, g, self.oled)
 
+    async def render_wnt_target_selection(self, sm, g):
+        await display.render_wnt_target_selection(sm, g, self.oled)
+
     async def render_victory(self, sm, g, winner_num):
         await display.render_victory(sm, g, self.oled, winner_num)
 
