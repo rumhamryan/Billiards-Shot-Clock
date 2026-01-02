@@ -29,12 +29,17 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         main.display.display_text = MagicMock()
         main.display.display_clear = MagicMock()
         main.display.process_timer_duration = MagicMock(return_value="10")
+
         # Async methods need AsyncMock
-        main.display.enter_idle_mode = AsyncMock()
-        main.display.enter_shot_clock = AsyncMock()
-        main.display.update_timer_display = AsyncMock()
-        main.display.render_profile_selection = AsyncMock()
-        main.display.render_menu = AsyncMock()
+        # We set return_value to an awaited coroutine to silence warning
+        async def mock_coro(*args, **kwargs):
+            return None
+
+        main.display.enter_idle_mode = MagicMock(side_effect=mock_coro)
+        main.display.enter_shot_clock = MagicMock(side_effect=mock_coro)
+        main.display.update_timer_display = MagicMock(side_effect=mock_coro)
+        main.display.render_profile_selection = MagicMock(side_effect=mock_coro)
+        main.display.render_menu = MagicMock(side_effect=mock_coro)
 
     async def test_timer_worker_countdown(self):
         # Setup state
@@ -97,11 +102,6 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
     async def test_main_function(self):
         import contextlib
 
-        # We must use AsyncMock because main.py awaits this call.
-        # To avoid the "never awaited" warning, we can manually await the mock
-        # if it's called, or just accept the warning in this specific case.
-        # However, patching it to a sync mock results in TypeError.
-
         with (
             patch("main.asyncio.sleep", side_effect=asyncio.CancelledError),
             patch("main.asyncio.create_task") as mock_task,
@@ -110,9 +110,9 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         ):
             await main.main()
 
+        main.display.render_profile_selection.assert_called_once()  # type: ignore
         mock_task.assert_called_once()
         mock_worker.assert_called_once()
-        main.display.render_profile_selection.assert_called_once()  # type: ignore
 
     async def test_callbacks(self):
         # Mock logic handler

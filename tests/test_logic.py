@@ -26,6 +26,87 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.hw.render_wnt_target_selection = AsyncMock()
         self.hw.render_message = AsyncMock()
 
+    async def test_up_profile_selection(self):
+        self.sm.update_state(State_Machine.PROFILE_SELECTION)
+        self.game.profile_selection_index = 1
+        await logic.handle_up(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.profile_selection_index, 0)
+
+    async def test_down_profile_selection(self):
+        self.sm.update_state(State_Machine.PROFILE_SELECTION)
+        self.game.profile_selection_index = 0
+        self.game.profile_names = ["A", "B"]
+        await logic.handle_down(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.profile_selection_index, 1)
+
+    async def test_up_menu(self):
+        self.sm.update_state(State_Machine.MENU)
+        self.game.current_menu_index = 1
+        await logic.handle_up(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.current_menu_index, 0)
+
+    async def test_down_menu(self):
+        self.sm.update_state(State_Machine.MENU)
+        self.game.current_menu_index = 0
+        self.game.menu_items = ["A", "B"]
+        await logic.handle_down(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.current_menu_index, 1)
+
+    async def test_down_edit_decrement(self):
+        self.sm.update_state(State_Machine.EDITING_VALUE)
+        self.game.current_menu_index = 1  # Rack
+        self.game.menu_items = ["Inning", "Rack"]
+        self.game.temp_setting_value = 5
+        await logic.handle_down(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.temp_setting_value, 4)
+
+    async def test_up_apa_skill_level(self):
+        self.sm.update_state(State_Machine.APA_SKILL_LEVEL_P1)
+        self.game.temp_setting_value = 9
+        await logic.handle_up(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.temp_setting_value, 1)  # Wraps
+
+    async def test_down_apa_skill_level(self):
+        self.sm.update_state(State_Machine.APA_SKILL_LEVEL_P1)
+        self.game.temp_setting_value = 1
+        await logic.handle_down(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.temp_setting_value, 9)  # Wraps
+
+    async def test_miss_confirm_rack_end(self):
+        self.sm.update_state(State_Machine.CONFIRM_RACK_END)
+        self.game.pending_rack_result = "win"
+        await logic.handle_miss(self.sm, self.game, self.hw)
+        self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)  # Manual update
+        self.assertIsNone(self.game.pending_rack_result)
+        self.assertTrue(self.sm.shot_clock_idle)
+
+    async def test_miss_menu(self):
+        self.sm.update_state(State_Machine.MENU)
+        await logic.handle_miss(self.sm, self.game, self.hw)
+        self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)  # Manual update
+        self.assertTrue(self.sm.shot_clock_idle)
+
+    async def test_miss_editing_value(self):
+        self.sm.update_state(State_Machine.EDITING_VALUE)
+        await logic.handle_miss(self.sm, self.game, self.hw)
+        self.assertTrue(self.sm.menu)
+
+    async def test_miss_exit_match_confirmation(self):
+        self.sm.update_state(State_Machine.EXIT_MATCH_CONFIRMATION)
+        await logic.handle_miss(self.sm, self.game, self.hw)
+        self.assertTrue(self.sm.menu)
+
+    async def test_init_apa_selection(self):
+        await logic._init_apa_selection(self.sm, self.game, self.hw)
+        self.assertTrue(self.sm.apa_skill_level_p1)
+        self.assertEqual(self.game.temp_setting_value, 3)
+
+    async def test_init_standard_selection_fallback(self):
+        # Fallback branch in _init_standard_selection
+        await logic._init_standard_selection(self.sm, self.game, self.hw, "OTHER")
+        self.assertEqual(self.game.menu_items[0], "Inning")
+        self.assertEqual(self.game.rack_counter, 1)
+
     # --- Profile Selection ---
 
     async def test_make_profile_selection_wnt(self):
@@ -190,6 +271,8 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.game.inning_counter = 1.0
         self.game.player_1_target = 5
         self.game.player_2_target = 5
+        self.game.menu_items = ["P1", "P2"]
+        self.game.menu_values = [0, 0]
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
@@ -210,26 +293,132 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.sm.state, State_Machine.EDITING_VALUE)
         self.assertEqual(self.game.temp_setting_value, 5)
 
-    async def test_make_edit_save_apa(self):
+    async def test_make_edit_save_rack(self):
         self.sm.update_state(State_Machine.EDITING_VALUE)
-        self.game.selected_profile = "APA"
+        self.game.current_menu_index = 1
+        self.game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
+        self.game.temp_setting_value = 10
+        self.game.menu_values = [1, 1, None, False]
+        await logic.handle_make(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.rack_counter, 10)
+        self.assertEqual(self.game.menu_values[1], 10)
+
+    async def test_make_edit_save_mute(self):
+        self.sm.update_state(State_Machine.EDITING_VALUE)
+        self.game.current_menu_index = 1
+        self.game.menu_items = ["Exit Match", "Mute"]
+        self.game.temp_setting_value = True
+        self.game.menu_values = [None, False]
+        await logic.handle_make(self.sm, self.game, self.hw)
+        self.assertTrue(self.game.speaker_muted)
+        self.assertEqual(self.game.menu_values[1], True)
+
+    async def test_make_edit_save_inning(self):
+        self.sm.update_state(State_Machine.EDITING_VALUE)
         self.game.current_menu_index = 0
+        self.game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
+        self.game.temp_setting_value = 5.0
+        self.game.menu_values = [1, 1, None, False]
+        await logic.handle_make(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.inning_counter, 5.0)
+        self.assertEqual(self.game.menu_values[0], 5)
+
+    async def test_make_edit_save_p1(self):
+        self.sm.update_state(State_Machine.EDITING_VALUE)
         self.game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
+        self.game.current_menu_index = 0
         self.game.temp_setting_value = 15
         self.game.menu_values = [0, 0, None, False]
-
         await logic.handle_make(self.sm, self.game, self.hw)
-
         self.assertEqual(self.game.player_1_score, 15)
         self.assertEqual(self.game.menu_values[0], 15)
 
+    async def test_make_edit_save_p2(self):
+        self.sm.update_state(State_Machine.EDITING_VALUE)
+        self.game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
+        self.game.current_menu_index = 1
+        self.game.temp_setting_value = 20
+        self.game.menu_values = [0, 0, None, False]
+        await logic.handle_make(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.player_2_score, 20)
+        self.assertEqual(self.game.menu_values[1], 20)
+
+    # --- Button Helpers ---
+
+    async def test_handle_new_rack_non_apa(self):
+        # Using a profile name that is NOT APA, WNT, or BCA
+        self.game.selected_profile = "Timeouts Mode"
+        self.game.rules = StandardRules()  # Ensure rules are set to pass any checks
+        self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        self.game.rack_counter = 1
+        self.game.menu_items = ["Exit Match", "Mute"]
+        self.game.menu_values = [None, False]
+        # handle_new_rack increments rack_counter
+        await logic.handle_new_rack(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.rack_counter, 2)
+
+    async def test_up_down_apa_game_type_selection(self):
+        self.sm.update_state(State_Machine.APA_GAME_TYPE_SELECTION)
+        self.game.temp_setting_value = 1
+        await logic.handle_up(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.temp_setting_value, 0)
+        await logic.handle_down(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.temp_setting_value, 1)
+
+    async def test_miss_apa_game_type_selection(self):
+        self.sm.update_state(State_Machine.APA_GAME_TYPE_SELECTION)
+        self.game.player_2_skill_level = 5
+        await logic.handle_miss(self.sm, self.game, self.hw)
+        self.assertTrue(self.sm.apa_skill_level_p2)
+        self.assertEqual(self.game.temp_setting_value, 5)
+
+    async def test_make_confirm_rack_end_win_p2(self):
+        self.sm.update_state(State_Machine.CONFIRM_RACK_END)
+        self.game.pending_rack_result = "win"
+        self.game.inning_counter = 1.5  # P2
+        self.game.menu_items = ["P1", "P2"]
+        self.game.menu_values = [0, 0]
+        await logic.handle_make(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.player_2_score, 1)
+
+    async def test_down_cancel_extension(self):
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.selected_profile = "APA"
+        self.game.extension_used = True
+        self.game.extension_duration = 25
+        self.game.countdown = 40
+        self.game.inning_counter = 1.0
+        await logic.handle_down(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.countdown, 15)
+        self.assertFalse(self.game.extension_used)
+
+    async def test_make_exit_confirmation(self):
+        self.sm.update_state(State_Machine.EXIT_MATCH_CONFIRMATION)
+        await logic.handle_make(self.sm, self.game, self.hw)
+        self.assertEqual(self.sm.state, State_Machine.PROFILE_SELECTION)
+
     # --- Error Handling ---
 
-    async def test_calculate_apa_targets_fallback(self):
+    async def test_calculate_apa_targets_missing_config_fallback(self):
         self.game.match_type = "9-Ball"
-        self.game.rules_config = {}
+        self.game.rules_config = {}  # Missing "APA"
         logic._calculate_apa_targets(self.game)
         self.assertEqual(self.game.player_1_target, 14)
+
+    async def test_calculate_apa_targets_invalid_sl_fallback(self):
+        self.game.match_type = "9-Ball"
+        self.game.player_1_skill_level = 99  # Trigger KeyError in targets lookup
+        self.game.rules_config = {
+            "APA": {"9-Ball": {"targets": {"3": 25}, "timeouts": {"3": 2, "4": 1}}}
+        }
+        logic._calculate_apa_targets(self.game)
+        self.assertEqual(self.game.player_1_target, 14)
+
+    async def test_handle_make_wnt_target_selection_fallback(self):
+        self.game.rules_config = {}  # Trigger fallback
+        self.game.temp_setting_value = 11
+        await logic._handle_make_wnt_target_selection(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.player_1_timeouts_per_rack, 1)
 
     async def test_init_wnt_selection_fallback(self):
         self.game.rules_config = {}

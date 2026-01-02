@@ -112,6 +112,65 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(rule._cancel_extension(self.game))
         self.assertEqual(self.game.countdown, 29)
 
+    async def test_9ball_up_idle_break_shot_active(self):
+        rule = NineBallRules()
+        self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        self.game.break_shot = True
+        self.game.rack_counter = 1
+        await rule.handle_up(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.rack_counter, 1)  # Should return early
+
+    async def test_standard_miss_running(self):
+        rule = StandardRules()
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
+        self.game.menu_values = [1, 1, None, False]
+        self.game.inning_counter = 1.0
+        await rule.handle_miss(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.menu_values[0], 1)
+        self.hw.enter_idle_mode.assert_called_once()
+
+    async def test_8ball_miss_idle_opens_menu(self):
+        rule = EightBallRules()
+        self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        await rule.handle_miss(self.sm, self.game, self.hw)
+        self.assertTrue(self.sm.menu)
+        self.hw.render_menu.assert_called_once()
+
+    async def test_9ball_miss_idle_opens_menu(self):
+        rule = NineBallRules()
+        self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        await rule.handle_miss(self.sm, self.game, self.hw)
+        self.assertTrue(self.sm.menu)
+        self.hw.render_menu.assert_called_once()
+
+    async def test_extension_unavailable_logic(self):
+        rule = StandardRules()
+        self.game.extension_available = False
+        self.game.player_1_timeouts_remaining = 1
+        self.assertFalse(rule._process_extension(self.game))
+
+    async def test_standard_up_down_countdown(self):
+        rule = StandardRules()
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        # Up
+        self.game.player_1_timeouts_remaining = 1
+        self.game.extension_available = True
+        self.game.extension_duration = 30
+        await rule.handle_up(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.countdown, 30)
+        # Down (refund)
+        self.game.extension_used = True
+        self.game.countdown = 40
+        await rule.handle_down(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.countdown, 10)
+
+    async def test_8ball_make_idle(self):
+        rule = EightBallRules()
+        self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        await rule.handle_make(self.sm, self.game, self.hw)
+        self.hw.enter_shot_clock.assert_called_once()
+
     # --- Nine Ball Rules ---
 
     async def test_9ball_make_idle(self):

@@ -355,6 +355,14 @@ async def handle_new_rack(state_machine, game, hw_module):
     if state_machine.profile_selection or state_machine.victory:
         return
 
+    # Only allow in game states
+    if not (
+        state_machine.shot_clock_idle
+        or state_machine.countdown_in_progress
+        or state_machine.countdown_complete
+    ):
+        return
+
     game.rack_counter += 1
 
     # Update menu values for non-APA/WNT/BCA
@@ -419,15 +427,26 @@ async def _handle_up_apa_skill(state_machine, game, hw_module):
     await hw_module.render_skill_level_selection(state_machine, game, player_num)
 
 
+async def _handle_up_apa_game_type(state_machine, game, hw_module):
+    """Handles UP button during APA game type selection."""
+    game.temp_setting_value = 1 - game.temp_setting_value
+    await hw_module.render_game_type_selection(state_machine, game)
+
+
+async def _handle_up_profile_selection(state_machine, game, hw_module):
+    """Handles UP button during profile selection."""
+    game.profile_selection_index = (game.profile_selection_index - 1) % len(
+        game.profile_names
+    )
+    await hw_module.render_profile_selection(state_machine, game)
+
+
 async def handle_up(state_machine, game, hw_module):
     """Logic for the UP button."""
     state = state_machine.state
 
     if state == State_Machine.PROFILE_SELECTION:
-        game.profile_selection_index = (game.profile_selection_index - 1) % len(
-            game.profile_names
-        )
-        await hw_module.render_profile_selection(state_machine, game)
+        await _handle_up_profile_selection(state_machine, game, hw_module)
 
     elif state == State_Machine.MENU:
         game.current_menu_index = (game.current_menu_index - 1) % len(game.menu_items)
@@ -440,9 +459,7 @@ async def handle_up(state_machine, game, hw_module):
         await _handle_up_apa_skill(state_machine, game, hw_module)
 
     elif state == State_Machine.APA_GAME_TYPE_SELECTION:
-        # Toggle between 0 (8-Ball) and 1 (9-Ball)
-        game.temp_setting_value = 1 - game.temp_setting_value
-        await hw_module.render_game_type_selection(state_machine, game)
+        await _handle_up_apa_game_type(state_machine, game, hw_module)
 
     elif state == State_Machine.WNT_TARGET_SELECTION:
         await _handle_up_wnt_target_selection(state_machine, game, hw_module)
@@ -457,6 +474,20 @@ async def handle_up(state_machine, game, hw_module):
         and game.rules
     ):
         await game.rules.handle_up(state_machine, game, hw_module)
+
+
+async def _handle_down_apa_game_type(state_machine, game, hw_module):
+    """Handles DOWN button during APA game type selection."""
+    game.temp_setting_value = 1 - game.temp_setting_value
+    await hw_module.render_game_type_selection(state_machine, game)
+
+
+async def _handle_down_profile_selection(state_machine, game, hw_module):
+    """Handles DOWN button during profile selection."""
+    game.profile_selection_index = (game.profile_selection_index + 1) % len(
+        game.profile_names
+    )
+    await hw_module.render_profile_selection(state_machine, game)
 
 
 async def _handle_down_editing(state_machine, game, hw_module):
@@ -483,10 +514,7 @@ async def handle_down(state_machine, game, hw_module):
     state = state_machine.state
 
     if state == State_Machine.PROFILE_SELECTION:
-        game.profile_selection_index = (game.profile_selection_index + 1) % len(
-            game.profile_names
-        )
-        await hw_module.render_profile_selection(state_machine, game)
+        await _handle_down_profile_selection(state_machine, game, hw_module)
 
     elif state == State_Machine.MENU:
         game.current_menu_index = (game.current_menu_index + 1) % len(game.menu_items)
@@ -499,9 +527,7 @@ async def handle_down(state_machine, game, hw_module):
         await _handle_down_apa_skill(state_machine, game, hw_module)
 
     elif state == State_Machine.APA_GAME_TYPE_SELECTION:
-        # Toggle between 0 (8-Ball) and 1 (9-Ball)
-        game.temp_setting_value = 1 - game.temp_setting_value
-        await hw_module.render_game_type_selection(state_machine, game)
+        await _handle_down_apa_game_type(state_machine, game, hw_module)
 
     elif state == State_Machine.WNT_TARGET_SELECTION:
         await _handle_down_wnt_target_selection(state_machine, game, hw_module)
