@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -78,11 +79,14 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.game.player_2_skill_level = 4
 
         # Mock json load for _calculate_apa_targets
+        mock_rules = {
+            "APA": {
+                "9-Ball": {"targets": {"4": 31, "5": 38}, "timeouts": {"3": 2, "4": 1}}
+            }
+        }
         with unittest.mock.patch(
             "builtins.open",
-            unittest.mock.mock_open(
-                read_data='{"9-Ball": {"targets": {"4": 31, "5": 38}}}'
-            ),
+            unittest.mock.mock_open(read_data=json.dumps(mock_rules)),
         ):
             await logic.handle_make(self.sm, self.game, self.hw)
 

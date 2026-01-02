@@ -10,7 +10,7 @@ def _calculate_apa_targets(game):
         with open("lib/rules.json") as f:
             rules = json.load(f)
 
-        match_rules = rules.get(game.match_type, {})
+        match_rules = rules.get("APA", {}).get(game.match_type, {})
 
         # Targets
         if game.match_type == "9-Ball":

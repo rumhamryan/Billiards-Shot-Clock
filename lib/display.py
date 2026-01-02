@@ -75,6 +75,47 @@ def process_timer_duration(duration):
 # High Level Logic Rendering
 
 
+def render_scoreline(oled, state_machine, game, send_payload=True):
+    """Renders the scoreline/bottom row based on the selected profile."""
+    if game.timeouts_only:
+        display_text(oled, state_machine, "Timeouts Mode", 12, 57, 1, False)
+    elif game.selected_profile == "APA":
+        # Draw player_1 score/target_score
+        score_1, target_1 = game.player_1_score, game.player_1_target
+        shift = 0
+        if score_1 < 10:
+            shift = 7
+        display_text(oled, state_machine, f"{score_1}", 0, 57, 1, False)
+        display_text(oled, state_machine, "/", 15 - shift, 57, 1, False)
+        display_text(oled, state_machine, f"{target_1}", 23 - shift, 57, 1, False)
+
+        # Draw player_2 score/target_score
+        score_2, target_2 = game.player_2_score, game.player_2_target
+        if score_2 < 10:
+            shift = 7
+        display_text(oled, state_machine, f"{score_2}", 89 + shift, 57, 1, False)
+        display_text(oled, state_machine, "/", 104, 57, 1, False)
+        display_text(oled, state_machine, f"{target_2}", 112, 57, 1, False)
+
+        # Draw the current shooter indicator
+        if game.inning_counter % 1 == 0:
+            display_shape(oled, "rect", 57, 57, 7, 7, True, False)
+            display_shape(oled, "rect", 66, 57, 7, 7, False, False)
+        else:
+            display_shape(oled, "rect", 57, 57, 7, 7, False, False)
+            display_shape(oled, "rect", 66, 57, 7, 7, True, False)
+
+        # Draw timeouts indicators
+        display_timeouts(oled, state_machine, game, False)
+    else:
+        racks, innings = game.rack_counter, int(game.inning_counter)
+        display_text(oled, state_machine, f"Rack:{racks}", 0, 57, 1, False)
+        display_text(oled, state_machine, f"Inning:{innings}", 57, 57, 1, False)
+
+    if send_payload:
+        oled.show()
+
+
 async def enter_idle_mode(state_machine, game, oled):
     state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
     display_clear(oled, "everything")
@@ -84,48 +125,16 @@ async def enter_idle_mode(state_machine, game, oled):
         display_text(
             oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8, False
         )
-        display_text(oled, state_machine, "Timeouts Mode", 12, 57, 1)
     else:
         game.speaker_5_count = 4
-        if game.selected_profile == "APA":
-            # Draw player_1 score/target_score
-            score_1, target_1 = game.player_1_score, game.player_1_target
-            shift = 0
-            if score_1 < 10:
-                shift = 7
-            display_text(oled, state_machine, f"{score_1}", 0, 57, 1, False)
-            display_text(oled, state_machine, "/", 15 - shift, 57, 1, False)
-            display_text(oled, state_machine, f"{target_1}", 23 - shift, 57, 1, False)
 
-            # Draw player_2 score/target_score
-            score_2, target_2 = game.player_2_score, game.player_2_target
-            if score_2 < 10:
-                shift = 7
-            display_text(oled, state_machine, f"{score_2}", 89 + shift, 57, 1, False)
-            display_text(oled, state_machine, "/", 104, 57, 1, False)
-            display_text(oled, state_machine, f"{target_2}", 112, 57, 1, False)
+    render_scoreline(oled, state_machine, game, True)
 
-            # Draw the current shooter indicator
-            if game.inning_counter % 1 == 0:
-                display_shape(oled, "rect", 57, 57, 7, 7, True, False)
-                display_shape(oled, "rect", 66, 57, 7, 7, False, False)
-            else:
-                display_shape(oled, "rect", 57, 57, 7, 7, False, False)
-                display_shape(oled, "rect", 66, 57, 7, 7, True, False)
-
-            # Draw timeouts indicators
-            display_timeouts(oled, state_machine, game, False)
-
-        else:
-            racks, innings = game.rack_counter, int(game.inning_counter)
-            display_text(oled, state_machine, f"Rack:{racks}", 0, 57, 1, False)
-            display_text(oled, state_machine, f"Inning:{innings}", 57, 57, 1, False)
-
-        if game.break_shot:
-            game.countdown = game.profile_based_countdown + game.extension_duration
-        else:
-            game.countdown = game.profile_based_countdown
-        display_text(oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8)
+    if game.break_shot:
+        game.countdown = game.profile_based_countdown + game.extension_duration
+    else:
+        game.countdown = game.profile_based_countdown
+    display_text(oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8)
 
 
 async def enter_shot_clock(state_machine, game, oled):
