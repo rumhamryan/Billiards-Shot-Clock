@@ -79,7 +79,7 @@ def render_scoreline(oled, state_machine, game, send_payload=True):
     """Renders the scoreline/bottom row based on the selected profile."""
     if game.timeouts_only:
         display_text(oled, state_machine, "Timeouts Mode", 12, 57, 1, False)
-    elif game.selected_profile in ["APA", "WNT"]:
+    elif game.selected_profile in ["APA", "WNT", "BCA"]:
         # Draw player_1 score/target_score
         score_1, target_1 = game.player_1_score, game.player_1_target
         shift = 0
@@ -139,14 +139,6 @@ async def enter_idle_mode(state_machine, game, oled):
 
 async def enter_shot_clock(state_machine, game, oled):
     state_machine.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
-
-    # Logic from original shot_clock()
-    if game.inning_counter % 1 == 0:
-        game.player_1_shooting = True
-        game.player_2_shooting = False
-    else:
-        game.player_1_shooting = False
-        game.player_2_shooting = True
 
 
 async def update_timer_display(state_machine, game, oled):

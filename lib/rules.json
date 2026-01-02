@@ -28,7 +28,12 @@
       }
     }
   },
+  "BCA": {
+    "target": 16,
+    "timeouts": 0
+  },
   "WNT": {
-    "targets": [5, 7, 9, 11, 13]
+    "targets": [5, 7, 9, 11, 13],
+    "timeouts": 1
   }
 } 

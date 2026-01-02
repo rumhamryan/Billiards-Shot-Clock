@@ -13,6 +13,7 @@ class TestWntUpdate(unittest.IsolatedAsyncioTestCase):
         self.game = Game_Stats()
         self.hw = MagicMock()
         self.hw.enter_idle_mode = AsyncMock()
+        self.hw.enter_shot_clock = AsyncMock()
         self.hw.render_wnt_target_selection = AsyncMock()
         self.hw.render_profile_selection = AsyncMock()
         self.hw.render_message = AsyncMock()
@@ -64,7 +65,7 @@ class TestWntUpdate(unittest.IsolatedAsyncioTestCase):
         self.game.selected_profile = "WNT"
         self.game.rules = EightBallRules()
         self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
 
         # Press UP
         await logic.handle_up(self.sm, self.game, self.hw)
@@ -92,7 +93,7 @@ class TestWntUpdate(unittest.IsolatedAsyncioTestCase):
         self.game.rules = EightBallRules()
         self.sm.update_state(State_Machine.CONFIRM_RACK_END)
         self.game.pending_rack_result = "win"
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_score = 0
         self.game.player_1_target = 9
         self.game.player_2_target = 9

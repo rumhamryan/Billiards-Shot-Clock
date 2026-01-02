@@ -95,12 +95,10 @@ class Game_Stats:
         self.extension_duration = 0
         self.extension_available = True
         self.extension_used = False
-        self.player_1_shooting = True
         self.player_1_extension_available = True
         self.player_1_skill_level = 0
         self.player_1_score = 0
         self.player_1_target = 0
-        self.player_2_shooting = False
         self.player_2_extension_available = True
         self.player_2_skill_level = 0
         self.player_2_score = 0
@@ -117,7 +115,7 @@ class Game_Stats:
         self.game_profiles = {
             "APA": {"timer_duration": 20, "extension_duration": 25},
             "WNT": {"timer_duration": 30, "extension_duration": 30},
-            "BCA": {"timer_duration": 45, "extension_duration": 45},
+            "BCA": {"timer_duration": 45, "extension_duration": 0},
             "Timeouts Mode": {"timer_duration": 60, "extension_duration": 0},
         }
         self.profile_names = ["APA", "BCA", "WNT", "Timeouts Mode"]
@@ -146,6 +144,16 @@ class Game_Stats:
         # New State Tracking Variables
         self.profile_selection_index = 0
         self.temp_setting_value = None
+
+    @property
+    def player_1_shooting(self):
+        """Returns True if it is Player 1's turn."""
+        return self.inning_counter % 1 == 0
+
+    @property
+    def player_2_shooting(self):
+        """Returns True if it is Player 2's turn."""
+        return self.inning_counter % 1 != 0
 
     def reset(self):
         """Resets game statistics to default, preserving speaker settings."""

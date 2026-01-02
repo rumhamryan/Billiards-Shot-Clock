@@ -28,7 +28,7 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
     async def test_9ball_make_running_scores_and_resets(self):
         rule = NineBallRules()
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_score = 0
         self.game.profile_based_countdown = 20
         self.game.player_1_target = 10
@@ -43,7 +43,7 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
     async def test_9ball_make_victory(self):
         rule = NineBallRules()
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_score = 9
         self.game.player_1_target = 10
 
@@ -94,7 +94,7 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
         self.game.player_1_score = 0
         self.game.player_1_target = 5
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.profile_based_countdown = 20
 
         await rule.handle_make(self.sm, self.game, self.hw)
@@ -140,21 +140,21 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
         rule = StandardRules()
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
         self.game.selected_profile = "BCA"
-        self.game.player_1_shooting = True
-        self.game.player_1_extension_available = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
+        self.game.player_1_timeouts_remaining = 1
         self.game.extension_duration = 30
         self.game.countdown = 10
 
         await rule.handle_up(self.sm, self.game, self.hw)
 
-        self.assertFalse(self.game.player_1_extension_available)
+        self.assertEqual(self.game.player_1_timeouts_remaining, 0)
         self.assertEqual(self.game.countdown, 40)
 
     async def test_extension_logic_wnt(self):
         rule = StandardRules()
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
         self.game.selected_profile = "WNT"
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_timeouts_remaining = 1
         self.game.extension_available = True
         self.game.extension_duration = 30
@@ -169,7 +169,7 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
         rule = NineBallRules()
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
         self.game.selected_profile = "APA"
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_timeouts_remaining = 1
         self.game.extension_duration = 25
         self.game.countdown = 20  # Exactly at threshold
@@ -191,7 +191,7 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
         rule = NineBallRules()
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
         self.game.selected_profile = "APA"
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.extension_used = True
         self.game.extension_duration = 25
 
@@ -208,7 +208,7 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
         rule = NineBallRules()
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
         self.game.selected_profile = "APA"
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_timeouts_remaining = 1
         self.game.extension_duration = 25
         self.game.countdown = 10

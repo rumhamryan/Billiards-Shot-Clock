@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock
 
 import lib.button_logic as logic
-from lib.game_rules import NineBallRules, StandardRules
+from lib.game_rules import EightBallRules, NineBallRules, StandardRules
 from lib.models import Game_Stats, State_Machine
 
 
@@ -39,6 +39,85 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.sm.game_on)
         self.assertEqual(self.game.selected_profile, "WNT")
         self.hw.render_wnt_target_selection.assert_called_once()
+
+    async def test_make_profile_selection_bca(self):
+        self.sm.update_state(State_Machine.PROFILE_SELECTION)
+        self.game.profile_names = ["APA", "BCA", "WNT", "Timeouts Mode"]
+        self.game.profile_selection_index = 1  # BCA
+
+        mock_rules = {"BCA": {"target": 16, "timeouts": 0}}
+        with unittest.mock.patch(
+            "builtins.open",
+            unittest.mock.mock_open(read_data=json.dumps(mock_rules)),
+        ):
+            await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertTrue(self.sm.game_on)
+        self.assertEqual(self.game.selected_profile, "BCA")
+        self.assertFalse(self.game.timeouts_only)
+        self.assertEqual(self.game.player_1_target, 16)
+        self.assertEqual(self.game.player_1_timeouts_per_rack, 0)
+        self.assertEqual(self.sm.state, State_Machine.SHOT_CLOCK_IDLE)
+        self.hw.enter_idle_mode.assert_called_once()
+
+    async def test_regression_p1_miss_p2_win_awarded_correctly(self):
+        """
+        Reproduce and verify fix for bug:
+        1. APA 8-ball starts (P1 turn).
+        2. P1 Miss (Turn transitions to P2, but remains in IDLE).
+        3. User awards rack win (UP).
+        4. P2 should receive the point.
+        """
+        # 1. Setup BCA (Uses 8-ball rules and Games Won scoring)
+        self.sm.update_state(State_Machine.PROFILE_SELECTION)
+        self.game.profile_selection_index = 1  # BCA
+        mock_rules = {"BCA": {"target": 16, "timeouts": 0}}
+        with unittest.mock.patch(
+            "builtins.open", unittest.mock.mock_open(read_data=json.dumps(mock_rules))
+        ):
+            await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.inning_counter, 1.0)
+        self.assertTrue(self.game.player_1_shooting)
+
+        # 2. P1 Miss
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.rules = EightBallRules()
+        await logic.handle_miss(self.sm, self.game, self.hw)
+
+        self.sm.update_state(
+            State_Machine.SHOT_CLOCK_IDLE
+        )  # Manual update as hw is mocked
+        self.assertEqual(self.game.inning_counter, 1.5)
+        self.assertTrue(self.game.player_2_shooting)
+        self.assertEqual(self.sm.state, State_Machine.SHOT_CLOCK_IDLE)
+
+        # 3. Award Win (UP)
+        await logic.handle_up(self.sm, self.game, self.hw)
+        self.assertEqual(self.sm.state, State_Machine.CONFIRM_RACK_END)
+        self.assertEqual(self.game.pending_rack_result, "win")
+
+        # 4. Confirm Win (MAKE)
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        # VERIFY
+        self.assertEqual(self.game.player_2_score, 1, "Player 2 should have 1 point")
+        self.assertEqual(self.game.player_1_score, 0, "Player 1 should have 0 points")
+
+    async def test_lose_rack_switches_shooter(self):
+        self.sm.update_state(State_Machine.CONFIRM_RACK_END)
+        self.game.pending_rack_result = "lose"
+        self.game.inning_counter = 1.0  # Player 1 shooting
+        self.game.player_1_score = 0
+        self.game.player_2_score = 0
+        self.game.player_1_target = 5
+        self.game.player_2_target = 5
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_2_score, 1)
+        self.assertEqual(self.game.inning_counter, 1.5, "Turn should switch to Player 2")
+        self.assertTrue(self.game.player_2_shooting)
 
     async def test_make_profile_selection_apa_transitions_to_sl(self):
         self.sm.update_state(State_Machine.PROFILE_SELECTION)
@@ -99,7 +178,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
         self.game.rules = NineBallRules()
         self.game.selected_profile = "APA"
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_score = 37
         self.game.player_1_target = 38
 
@@ -267,7 +346,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.game.extension_available = True
         self.game.countdown = 10
         self.game.extension_duration = 20
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_timeouts_remaining = 1
 
         await logic.handle_up(self.sm, self.game, self.hw)
@@ -293,7 +372,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
         self.game.rules = StandardRules()
         self.game.selected_profile = "WNT"
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_timeouts_remaining = 1
         self.game.extension_available = True
         self.game.countdown = 10
@@ -410,7 +489,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
     async def test_make_confirm_rack_end_win(self):
         self.sm.update_state(State_Machine.CONFIRM_RACK_END)
         self.game.pending_rack_result = "win"
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_score = 0
         self.game.rack_counter = 1
         self.game.player_1_target = 5
@@ -426,7 +505,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
     async def test_make_confirm_rack_end_lose(self):
         self.sm.update_state(State_Machine.CONFIRM_RACK_END)
         self.game.pending_rack_result = "lose"
-        self.game.player_1_shooting = True
+        self.game.inning_counter = 1.0  # Player 1 shooting
         self.game.player_1_score = 0
         self.game.player_2_score = 0
         self.game.rack_counter = 1
