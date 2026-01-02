@@ -172,8 +172,8 @@ async def _handle_make_editing(state_machine, game, hw_module):
 
 async def _handle_make_exit_confirmation(state_machine, game, hw_module):
     """Handle MAKE button in EXIT_MATCH_CONFIRMATION state."""
-    game.profile_selection_index = 0
-    state_machine.update_state(State_Machine.PROFILE_SELECTION)
+    game.reset()
+    state_machine.reset()
     await hw_module.render_profile_selection(state_machine, game, clear_all=True)
 
 
@@ -254,8 +254,8 @@ async def handle_make(state_machine, game, hw_module):
 
     elif state == State_Machine.VICTORY:
         # After victory, return to profile selection
-        game.profile_selection_index = 0
-        state_machine.update_state(State_Machine.PROFILE_SELECTION)
+        game.reset()
+        state_machine.reset()
         await hw_module.render_profile_selection(state_machine, game, clear_all=True)
 
     # Delegate Game States to Rules

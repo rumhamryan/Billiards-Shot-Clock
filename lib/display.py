@@ -108,10 +108,10 @@ async def enter_idle_mode(state_machine, game, oled):
             # Draw the current shooter indicator
             if game.inning_counter % 1 == 0:
                 display_shape(oled, "rect", 57, 57, 7, 7, True, False)
-                display_shape(oled, "rect", 65, 57, 7, 7, False, False)
+                display_shape(oled, "rect", 66, 57, 7, 7, False, False)
             else:
                 display_shape(oled, "rect", 57, 57, 7, 7, False, False)
-                display_shape(oled, "rect", 65, 57, 7, 7, True, False)
+                display_shape(oled, "rect", 66, 57, 7, 7, True, False)
 
             # Draw timeouts indicators
             display_timeouts(oled, state_machine, game, False)
@@ -125,9 +125,7 @@ async def enter_idle_mode(state_machine, game, oled):
             game.countdown = game.profile_based_countdown + game.extension_duration
         else:
             game.countdown = game.profile_based_countdown
-        display_text(
-            oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8
-        )
+        display_text(oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8)
 
 
 async def enter_shot_clock(state_machine, game, oled):

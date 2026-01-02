@@ -13,6 +13,10 @@ class State_Machine:
     VICTORY = "victory"
 
     def __init__(self, initial_state=PROFILE_SELECTION):
+        self._set_defaults(initial_state)
+
+    def _set_defaults(self, initial_state=PROFILE_SELECTION):
+        """Sets the default values for the state machine."""
         self.state = initial_state
         self.game_on = False
 
@@ -67,9 +71,18 @@ class State_Machine:
     def victory(self):
         return self.state == self.VICTORY
 
+    def reset(self):
+        """Resets the state machine to its initial state."""
+        self._set_defaults()
+
 
 class Game_Stats:
     def __init__(self):
+        self.speaker_muted = False
+        self._set_defaults()
+
+    def _set_defaults(self):
+        """Sets the default values for game statistics."""
         self.rules = None  # Holds the GameRules instance
         self.pending_rack_result = None  # "win" or "lose" for 8-ball confirmation
         self.profile_based_countdown = 0
@@ -95,7 +108,6 @@ class Game_Stats:
         self.inning_counter = 1.0
         self.rack_counter = 1
         self.break_shot = True
-        self.speaker_muted = False
         self.speaker_5_count = 4
         self.game_profiles = {
             "APA": {"timer_duration": 20, "extension_duration": 25},
@@ -129,6 +141,10 @@ class Game_Stats:
         # New State Tracking Variables
         self.profile_selection_index = 0
         self.temp_setting_value = None
+
+    def reset(self):
+        """Resets game statistics to default, preserving speaker settings."""
+        self._set_defaults()
 
     def update_menu_selection(
         self,

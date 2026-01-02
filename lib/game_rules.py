@@ -32,6 +32,7 @@ class GameRules:
                 game.player_1_extension_available = False
             else:
                 game.player_2_extension_available = False
+            game.extension_used = True
             can_extend = True
         elif game.selected_profile == "APA" and game.extension_available:
             # Check if current player has timeouts remaining
@@ -51,6 +52,39 @@ class GameRules:
         if can_extend:
             game.countdown += game.extension_duration
         return can_extend
+
+    def _cancel_extension(self, game):
+        """Helper to cancel a previously applied extension."""
+        # Must have an active extension to cancel
+        if not game.extension_used:
+            return False
+
+        # Must be at or above the threshold to allow cancellation
+        # We use an explicit integer comparison to avoid any ambiguity
+        current_timer = int(game.countdown)
+        if current_timer < 30:
+            return False
+
+        # Subtract the extension duration, ensuring we don't drop below zero
+        game.countdown = max(0, current_timer - game.extension_duration)
+
+        # Reset extension flags
+        game.extension_used = False
+        game.extension_available = True
+
+        # Refund the extension resource
+        if game.selected_profile in ["WNT", "BCA"]:
+            if game.player_1_shooting:
+                game.player_1_extension_available = True
+            else:
+                game.player_2_extension_available = True
+        elif game.selected_profile == "APA":
+            if game.player_1_shooting:
+                game.player_1_timeouts_remaining += 1
+            else:
+                game.player_2_timeouts_remaining += 1
+
+        return True
 
     async def _check_win_condition(self, state_machine, game, hw_module):
         if (game.player_1_score >= game.player_1_target) or (
@@ -103,6 +137,7 @@ class NineBallRules(GameRules):
             game.inning_counter += 0.5
             game.menu_values[0] = game.player_1_score
             game.menu_values[1] = game.player_2_score
+            game.extension_available, game.extension_used = True, False
             game.break_shot = False
             await hw_module.enter_idle_mode(state_machine, game)
         elif state == State_Machine.SHOT_CLOCK_IDLE:
@@ -145,6 +180,9 @@ class NineBallRules(GameRules):
             game.menu_values[1] = game.rack_counter
             game.break_shot = False
             await hw_module.enter_idle_mode(state_machine, game)
+        elif state == State_Machine.COUNTDOWN_IN_PROGRESS:
+            if self._cancel_extension(game):
+                await hw_module.update_timer_display(state_machine, game)
 
 
 class EightBallRules(GameRules):
@@ -176,6 +214,7 @@ class EightBallRules(GameRules):
             # End Turn
             game.countdown = game.profile_based_countdown
             game.inning_counter += 0.5
+            game.extension_available, game.extension_used = True, False
             game.break_shot = False
             await hw_module.enter_idle_mode(state_machine, game)
         elif state == State_Machine.SHOT_CLOCK_IDLE:
@@ -202,6 +241,9 @@ class EightBallRules(GameRules):
             game.pending_rack_result = "lose"
             state_machine.update_state(State_Machine.CONFIRM_RACK_END)
             await hw_module.render_message(state_machine, game, "Confirm Loss?")
+        elif state == State_Machine.COUNTDOWN_IN_PROGRESS:
+            if self._cancel_extension(game):
+                await hw_module.update_timer_display(state_machine, game)
 
 
 class StandardRules(GameRules):
@@ -229,6 +271,7 @@ class StandardRules(GameRules):
             # End Turn
             game.countdown = game.profile_based_countdown
             game.inning_counter += 0.5
+            game.extension_available, game.extension_used = True, False
             game.break_shot = False
             # Update menu (inning/rack)
             game.menu_values[0] = int(game.inning_counter)
@@ -240,4 +283,9 @@ class StandardRules(GameRules):
 
     async def handle_up(self, state_machine, game, hw_module):
         if state_machine.countdown_in_progress and self._process_extension(game):
+            await hw_module.update_timer_display(state_machine, game)
+
+    async def handle_down(self, state_machine, game, hw_module):
+        state = state_machine.state
+        if state == State_Machine.COUNTDOWN_IN_PROGRESS and self._cancel_extension(game):
             await hw_module.update_timer_display(state_machine, game)

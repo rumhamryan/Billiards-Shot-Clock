@@ -149,3 +149,64 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
 
         self.assertFalse(self.game.player_1_extension_available)
         self.assertEqual(self.game.countdown, 40)
+
+    async def test_cancel_extension_logic_apa(self):
+        rule = NineBallRules()
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.selected_profile = "APA"
+        self.game.player_1_shooting = True
+        self.game.player_1_timeouts_remaining = 1
+        self.game.extension_duration = 25
+        self.game.countdown = 20  # Exactly at threshold
+        self.game.extension_available = True
+
+        # Apply extension
+        await rule.handle_up(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.countdown, 45)
+        self.assertEqual(self.game.player_1_timeouts_remaining, 0)
+        self.assertTrue(self.game.extension_used)
+
+        # Cancel extension (should work since 45 >= 20)
+        await rule.handle_down(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.countdown, 20)
+        self.assertEqual(self.game.player_1_timeouts_remaining, 1)
+        self.assertFalse(self.game.extension_used)
+
+    async def test_cancel_extension_logic_threshold(self):
+        rule = NineBallRules()
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.selected_profile = "APA"
+        self.game.player_1_shooting = True
+        self.game.extension_used = True
+        self.game.extension_duration = 25
+
+        # Test at 3`0 (should work)
+        self.game.countdown = 30
+        self.assertTrue(rule._cancel_extension(self.game))
+
+        # Reset and test at 19 (should NOT work)
+        self.game.extension_used = True
+        self.game.countdown = 19
+        self.assertFalse(rule._cancel_extension(self.game))
+
+    async def test_cancel_extension_logic_below_20(self):
+        rule = NineBallRules()
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.selected_profile = "APA"
+        self.game.player_1_shooting = True
+        self.game.player_1_timeouts_remaining = 1
+        self.game.extension_duration = 25
+        self.game.countdown = 10
+        self.game.extension_available = True
+
+        # Apply extension -> countdown becomes 35
+        await rule.handle_up(self.sm, self.game, self.hw)
+
+        # Manually set countdown below 20
+        self.game.countdown = 15
+
+        # Cancel extension (should NOT work since 15 < 20)
+        await rule.handle_down(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.countdown, 15)
+        self.assertEqual(self.game.player_1_timeouts_remaining, 0)
+        self.assertTrue(self.game.extension_used)

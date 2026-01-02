@@ -20,7 +20,7 @@ dev = [
 [tool.ruff]
 # MicroPython projects often have code in root and lib
 src = [".", "lib"]
-line-length = 89
+line-length = 90
 target-version = "py312"
 
 [tool.ruff.lint]

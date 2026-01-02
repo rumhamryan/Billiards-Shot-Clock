@@ -436,6 +436,60 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.sm.state, State_Machine.SHOT_CLOCK_IDLE)
         self.hw.enter_idle_mode.assert_called_once()
 
+    async def test_reproduce_reported_bug(self):
+        """
+        Sequence:
+        1. Start match (APA)
+        2. Player 1 miss (break_shot becomes False)
+        3. Exit match (should reset break_shot to True)
+        4. Start match again (break_shot should be True)
+        """
+        # 1. Start match (APA)
+        self.sm.update_state(State_Machine.PROFILE_SELECTION)
+        self.game.profile_selection_index = 0  # APA
+        await logic.handle_make(self.sm, self.game, self.hw)  # To SL P1
+        await logic.handle_make(self.sm, self.game, self.hw)  # To SL P2
+        # Mocking 9-ball selection
+        self.sm.update_state(State_Machine.APA_GAME_TYPE_SELECTION)
+        self.game.temp_setting_value = 1
+        with unittest.mock.patch(
+            "builtins.open",
+            unittest.mock.mock_open(read_data='{"9-Ball": {"targets": {"3": 14}}}'),
+        ):
+            await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertTrue(self.game.break_shot)
+
+        # 2. Player 1 miss
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        await logic.handle_miss(self.sm, self.game, self.hw)
+        self.assertFalse(self.game.break_shot)
+
+        # 3. Exit match
+        self.sm.update_state(State_Machine.MENU)
+        self.game.current_menu_index = 2  # Exit Match
+        await logic.handle_make(self.sm, self.game, self.hw)  # To Confirmation
+        await logic.handle_make(self.sm, self.game, self.hw)  # Confirm Exit
+
+        self.assertEqual(self.sm.state, State_Machine.PROFILE_SELECTION)
+        self.assertTrue(
+            self.game.break_shot, "break_shot should be reset to True after Exit"
+        )
+
+        # 4. Start match again
+        self.game.profile_selection_index = 0  # APA
+        await logic.handle_make(self.sm, self.game, self.hw)  # To SL P1
+        await logic.handle_make(self.sm, self.game, self.hw)  # To SL P2
+        self.sm.update_state(State_Machine.APA_GAME_TYPE_SELECTION)
+        self.game.temp_setting_value = 1
+        with unittest.mock.patch(
+            "builtins.open",
+            unittest.mock.mock_open(read_data='{"9-Ball": {"targets": {"3": 14}}}'),
+        ):
+            await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertTrue(self.game.break_shot)
+
 
 if __name__ == "__main__":
     unittest.main()
