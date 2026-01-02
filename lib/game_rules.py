@@ -156,12 +156,22 @@ class NineBallRules(GameRules):
             game.rack_counter += 1
             game.break_shot = True
 
+            # APA 9-Ball Score Increment
+            if game.selected_profile == "APA":
+                if game.inning_counter % 1 == 0:
+                    game.player_1_score += 1
+                else:
+                    game.player_2_score += 1
+                # Update Menu Values (Scores for APA 9-Ball)
+                game.menu_values[0] = game.player_1_score
+                game.menu_values[1] = game.player_2_score
+            else:
+                # Update Menu Values (Rack for non-APA)
+                game.menu_values[1] = game.rack_counter
+
             # Reset APA Timeouts
             game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
             game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
-
-            # Update Menu Values
-            game.menu_values[1] = game.rack_counter
 
             await hw_module.enter_idle_mode(state_machine, game)
 
@@ -177,8 +187,21 @@ class NineBallRules(GameRules):
                 return
             # Cancel/Undo New Rack
             game.rack_counter = max(1, game.rack_counter - 1)
-            game.menu_values[1] = game.rack_counter
             game.break_shot = False
+
+            # APA 9-Ball Score Decrement
+            if game.selected_profile == "APA":
+                if game.inning_counter % 1 == 0:
+                    game.player_1_score = max(0, game.player_1_score - 1)
+                else:
+                    game.player_2_score = max(0, game.player_2_score - 1)
+                # Update Menu Values
+                game.menu_values[0] = game.player_1_score
+                game.menu_values[1] = game.player_2_score
+            else:
+                # Update Menu Values
+                game.menu_values[1] = game.rack_counter
+
             await hw_module.enter_idle_mode(state_machine, game)
         elif state == State_Machine.COUNTDOWN_IN_PROGRESS:
             if self._cancel_extension(game):
