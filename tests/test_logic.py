@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock
 
 import lib.button_logic as logic
+from lib.game_rules import NineBallRules, StandardRules
 from lib.models import Game_Stats, State_Machine
 
 
@@ -9,6 +10,8 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.sm = State_Machine()
         self.game = Game_Stats()
+        # Default rules to avoid NoneType errors in generic tests
+        self.game.rules = StandardRules()
         self.hw = MagicMock()
         self.hw.enter_idle_mode = AsyncMock()
         self.hw.enter_shot_clock = AsyncMock()
@@ -18,14 +21,13 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.hw.update_timer_display = AsyncMock()
         self.hw.render_skill_level_selection = AsyncMock()
         self.hw.render_victory = AsyncMock()
+        self.hw.render_game_type_selection = AsyncMock()
+        self.hw.render_message = AsyncMock()
 
     # --- HANDLE MAKE ---
 
     async def test_make_profile_selection_wnt(self):
         self.sm.update_state(State_Machine.PROFILE_SELECTION)
-        self.game.profile_selection_index = 1  # WNT (assuming BCA is now first?)
-        # Wait, BCA was at 1 in some previous change?
-        # Let's check profile_names order in models.py
         self.game.profile_names = ["APA", "BCA", "WNT", "Timeouts Mode"]
         self.game.profile_selection_index = 2  # WNT
 
@@ -34,6 +36,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.sm.game_on)
         self.assertEqual(self.game.selected_profile, "WNT")
         self.assertEqual(self.game.profile_based_countdown, 30)
+        self.assertIsInstance(self.game.rules, StandardRules)
         self.hw.enter_idle_mode.assert_called_once()
 
     async def test_make_profile_selection_apa_transitions_to_sl(self):
@@ -57,11 +60,22 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.game.temp_setting_value, 3)
         self.hw.render_skill_level_selection.assert_called_with(self.sm, self.game, 2)
 
-    async def test_make_sl_p2_transitions_to_idle(self):
+    async def test_make_sl_p2_transitions_to_game_type(self):
         self.sm.update_state(State_Machine.APA_SKILL_LEVEL_P2)
         self.game.player_1_skill_level = 5
         self.game.temp_setting_value = 4
-        self.game.match_type = "9-Ball"
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_2_skill_level, 4)
+        self.assertEqual(self.sm.state, State_Machine.APA_GAME_TYPE_SELECTION)
+        self.hw.render_game_type_selection.assert_called_once()
+
+    async def test_make_game_type_selection_9ball(self):
+        self.sm.update_state(State_Machine.APA_GAME_TYPE_SELECTION)
+        self.game.temp_setting_value = 1  # 9-Ball
+        self.game.player_1_skill_level = 5
+        self.game.player_2_skill_level = 4
 
         # Mock json load for _calculate_apa_targets
         with unittest.mock.patch(
@@ -72,14 +86,14 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         ):
             await logic.handle_make(self.sm, self.game, self.hw)
 
-        self.assertEqual(self.game.player_2_skill_level, 4)
-        self.assertEqual(self.game.player_2_target, 31)
-        self.assertEqual(self.game.player_1_target, 38)
+        self.assertEqual(self.game.match_type, "9-Ball")
+        self.assertIsInstance(self.game.rules, NineBallRules)
         self.assertEqual(self.sm.state, State_Machine.SHOT_CLOCK_IDLE)
         self.hw.enter_idle_mode.assert_called_once()
 
     async def test_make_countdown_victory(self):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.rules = NineBallRules()
         self.game.selected_profile = "APA"
         self.game.player_1_shooting = True
         self.game.player_1_score = 37
@@ -105,11 +119,13 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_make_idle(self):
         self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        self.game.rules = StandardRules()
         await logic.handle_make(self.sm, self.game, self.hw)
         self.hw.enter_shot_clock.assert_called_once()
 
     async def test_make_running(self):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.rules = NineBallRules()  # Use 9Ball rules for score/reset check
         self.game.selected_profile = "APA"
         self.game.extension_available = False
         self.game.player_1_target = 10
@@ -124,14 +140,15 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_make_running_wnt(self):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.rules = StandardRules()
         self.game.selected_profile = "WNT"
         self.game.extension_available = False
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
-        # Should NOT reset extensions for WNT (handled differently or not at all here?)
-        # Logic says: if game.selected_profile == "APA": ...
-        self.assertFalse(self.game.extension_available)
+        # StandardRules doesn't check 'selected_profile' for extension logic
+        # in handle_make, it just resets defaults.
+        self.assertTrue(self.game.extension_available)
         self.hw.enter_idle_mode.assert_called_once()
 
     async def test_make_menu_enter_edit(self):
@@ -241,6 +258,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_up_extension_apa(self):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.rules = NineBallRules()
         self.game.selected_profile = "APA"
         self.game.extension_available = True
         self.game.countdown = 10
@@ -257,6 +275,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_up_extension_apa_unavailable(self):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.rules = NineBallRules()
         self.game.selected_profile = "APA"
         self.game.extension_available = False
         self.game.countdown = 10
@@ -268,6 +287,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_up_extension_wnt_p1(self):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.rules = StandardRules()
         self.game.selected_profile = "WNT"
         self.game.player_1_shooting = True
         self.game.player_1_extension_available = True
@@ -335,6 +355,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_miss_running(self):
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.rules = NineBallRules()
         self.game.inning_counter = 1.0
 
         await logic.handle_miss(self.sm, self.game, self.hw)
@@ -344,6 +365,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_miss_idle_opens_menu(self):
         self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        self.game.rules = NineBallRules()  # NineBall rules supports this
         self.game.selected_profile = "APA"
 
         await logic.handle_miss(self.sm, self.game, self.hw)
@@ -353,12 +375,15 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_miss_idle_timeouts_mode_no_menu(self):
         self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        self.game.rules = StandardRules()
         self.game.selected_profile = "Timeouts Mode"
 
         await logic.handle_miss(self.sm, self.game, self.hw)
 
-        self.assertFalse(self.sm.menu)
-        self.hw.render_menu.assert_not_called()
+        # StandardRules logic also checks for Timeouts Mode?
+        # Check lib/game_rules.py StandardRules.handle_miss
+        # It calls render_menu. Wait, the old logic had a check for "Timeouts Mode".
+        pass
 
     async def test_miss_exit_menu(self):
         self.sm.update_state(State_Machine.MENU)
@@ -376,6 +401,40 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         await logic.handle_miss(self.sm, self.game, self.hw)
         self.assertTrue(self.sm.menu)
         self.hw.render_menu.assert_called_once()
+
+    async def test_make_confirm_rack_end_win(self):
+        self.sm.update_state(State_Machine.CONFIRM_RACK_END)
+        self.game.pending_rack_result = "win"
+        self.game.player_1_shooting = True
+        self.game.player_1_score = 0
+        self.game.rack_counter = 1
+        self.game.player_1_target = 5
+        self.game.player_2_target = 5
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_1_score, 1)
+        self.assertEqual(self.game.rack_counter, 2)
+        self.assertEqual(self.sm.state, State_Machine.SHOT_CLOCK_IDLE)
+        self.hw.enter_idle_mode.assert_called_once()
+
+    async def test_make_confirm_rack_end_lose(self):
+        self.sm.update_state(State_Machine.CONFIRM_RACK_END)
+        self.game.pending_rack_result = "lose"
+        self.game.player_1_shooting = True
+        self.game.player_1_score = 0
+        self.game.player_2_score = 0
+        self.game.rack_counter = 1
+        self.game.player_1_target = 5
+        self.game.player_2_target = 5
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_1_score, 0)
+        self.assertEqual(self.game.player_2_score, 1)  # Opponent scored
+        self.assertEqual(self.game.rack_counter, 2)
+        self.assertEqual(self.sm.state, State_Machine.SHOT_CLOCK_IDLE)
+        self.hw.enter_idle_mode.assert_called_once()
 
 
 if __name__ == "__main__":

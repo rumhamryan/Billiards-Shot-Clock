@@ -1,6 +1,5 @@
 import _thread
 
-import machine
 import uasyncio as asyncio
 import utime
 
@@ -151,30 +150,12 @@ async def timer_worker():
 
 # --- Button Handlers (Bridge) ---
 # We need to update inactivity_check on any button press
-_ignore_next_make = False
-_ignore_next_miss = False
-
-
-async def on_new_rack():
-    global inactivity_check
-    inactivity_check = utime.ticks_ms()
-    await logic.handle_new_rack(state_machine, game, hw_wrapper)
 
 
 async def on_make():
-    global inactivity_check, _ignore_next_make, _ignore_next_miss
-    if _ignore_next_make:
-        _ignore_next_make = False
-        return
-
+    global inactivity_check
     inactivity_check = utime.ticks_ms()
-    # Use Pin objects to check simultaneous press
-    miss_pin = machine.Pin(MISS_PIN, machine.Pin.IN, machine.Pin.PULL_DOWN)
-    if miss_pin.value():
-        _ignore_next_miss = True
-        await on_new_rack()
-    else:
-        await logic.handle_make(state_machine, game, hw_wrapper)
+    await logic.handle_make(state_machine, game, hw_wrapper)
 
 
 async def on_up():
@@ -190,20 +171,10 @@ async def on_down():
 
 
 async def on_miss():
-    global inactivity_check, _ignore_next_make, _ignore_next_miss
-    if _ignore_next_miss:
-        _ignore_next_miss = False
-        return
-
-    # Check if MAKE button is currently held
-    make_pin = machine.Pin(MAKE_PIN, machine.Pin.IN, machine.Pin.PULL_DOWN)
-    if make_pin.value():
-        _ignore_next_make = True
-        await on_new_rack()
-    else:
-        if not state_machine.profile_selection:
-            inactivity_check = utime.ticks_ms()
-        await logic.handle_miss(state_machine, game, hw_wrapper)
+    global inactivity_check
+    if not state_machine.profile_selection:
+        inactivity_check = utime.ticks_ms()
+    await logic.handle_miss(state_machine, game, hw_wrapper)
 
 
 # Hardware Wrapper
@@ -239,8 +210,14 @@ class HardwareWrapper:
     async def render_skill_level_selection(self, sm, g, player_num):
         await display.render_skill_level_selection(sm, g, self.oled, player_num)
 
+    async def render_game_type_selection(self, sm, g):
+        await display.render_game_type_selection(sm, g, self.oled)
+
     async def render_victory(self, sm, g, winner_num):
         await display.render_victory(sm, g, self.oled, winner_num)
+
+    async def render_message(self, sm, g, message, font_size=1):
+        await display.render_message(sm, g, self.oled, message, font_size)
 
 
 hw_wrapper = HardwareWrapper(OLED)

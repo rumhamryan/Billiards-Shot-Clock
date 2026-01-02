@@ -1,5 +1,6 @@
 import json
 
+from lib.game_rules import EightBallRules, NineBallRules, StandardRules
 from lib.models import State_Machine
 
 
@@ -66,6 +67,9 @@ async def _handle_make_profile_selection(state_machine, game, hw_module):
         await hw_module.render_skill_level_selection(state_machine, game, 1)
         return
 
+    # Assign Standard Rules for non-APA profiles
+    game.rules = StandardRules()
+
     state_machine.game_on = True
     game.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
     game.inning_counter = 1.0
@@ -87,49 +91,43 @@ async def _handle_make_skill_level(state_machine, game, hw_module):
         state_machine.update_state(State_Machine.APA_SKILL_LEVEL_P2)
         game.temp_setting_value = 3  # Start with SL 3
         await hw_module.render_skill_level_selection(state_machine, game, 2)
+        return
+
     elif state_machine.apa_skill_level_p2:
         game.player_2_skill_level = game.temp_setting_value
-        _calculate_apa_targets(game)
 
-        # Initialize APA stats
-        game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
-        game.player_1_score = 0
-        game.player_2_score = 0
-        game.menu_values = [
-            game.player_1_score,
-            game.player_2_score,
-            None,
-            game.speaker_muted,
-        ]
-        state_machine.game_on = True
-        state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
-        await hw_module.enter_idle_mode(state_machine, game)
+    # Transition to Game Type Selection
+    state_machine.update_state(State_Machine.APA_GAME_TYPE_SELECTION)
+    game.temp_setting_value = 1  # Default to 9-Ball (0=8-Ball, 1=9-Ball)
+    await hw_module.render_game_type_selection(state_machine, game)
 
 
-async def _handle_make_countdown(state_machine, game, hw_module):
-    """Handle MAKE button in countdown-related states."""
-    if game.selected_profile == "APA":
-        if game.player_1_shooting:
-            game.player_1_score += 1
-        else:
-            game.player_2_score += 1
+async def _handle_make_game_type_selection(state_machine, game, hw_module):
+    """Handles MAKE button during APA game type selection."""
+    # 0 = 8-Ball, 1 = 9-Ball
+    is_9ball = game.temp_setting_value == 1
+    game.match_type = "9-Ball" if is_9ball else "8-Ball"
 
-        # Update menu values to reflect new scores
-        game.menu_values[0] = game.player_1_score
-        game.menu_values[1] = game.player_2_score
-        game.extension_available, game.extension_used = True, False
+    # Instantiate Rules
+    if is_9ball:
+        game.rules = NineBallRules()
+    else:
+        game.rules = EightBallRules()
 
-        # Check for victory
-        if (game.player_1_score >= game.player_1_target) or (
-            game.player_2_score >= game.player_2_target
-        ):
-            winner = 1 if game.player_1_score >= game.player_1_target else 2
-            state_machine.update_state(State_Machine.VICTORY)
-            await hw_module.render_victory(state_machine, game, winner)
-            return
+    _calculate_apa_targets(game)
 
-    game.countdown = game.profile_based_countdown
-    game.break_shot = False
+    # Initialize APA stats
+    game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
+    game.player_1_score = 0
+    game.player_2_score = 0
+    game.menu_values = [
+        game.player_1_score,
+        game.player_2_score,
+        None,
+        game.speaker_muted,
+    ]
+    state_machine.game_on = True
+    state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
     await hw_module.enter_idle_mode(state_machine, game)
 
 
@@ -179,6 +177,56 @@ async def _handle_make_exit_confirmation(state_machine, game, hw_module):
     await hw_module.render_profile_selection(state_machine, game, clear_all=True)
 
 
+async def _handle_make_confirm_rack_end(state_machine, game, hw_module):
+    """Handle MAKE in CONFIRM_RACK_END state (Confirming Win/Loss)."""
+    if not game.pending_rack_result:
+        # Should not happen, but safe fallback
+        state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        await hw_module.enter_idle_mode(state_machine, game)
+        return
+
+    # Apply Score
+    if game.pending_rack_result == "win":
+        if game.player_1_shooting:
+            game.player_1_score += 1
+        else:
+            game.player_2_score += 1
+    elif game.pending_rack_result == "lose":
+        # Opponent wins
+        if game.player_1_shooting:
+            game.player_2_score += 1
+        else:
+            game.player_1_score += 1
+
+    # Update Rack
+    game.rack_counter += 1
+
+    # Reset Timeouts (APA)
+    game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
+    game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
+
+    # Update Menu Values
+    game.menu_values[0] = game.player_1_score
+    game.menu_values[1] = game.player_2_score
+
+    # Clear pending
+    game.pending_rack_result = None
+
+    # Check for Match Victory
+    if (game.player_1_score >= game.player_1_target) or (
+        game.player_2_score >= game.player_2_target
+    ):
+        winner = 1 if game.player_1_score >= game.player_1_target else 2
+        state_machine.update_state(State_Machine.VICTORY)
+        await hw_module.render_victory(state_machine, game, winner)
+        return
+
+    # Return to Idle
+    game.break_shot = True
+    state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
+    await hw_module.enter_idle_mode(state_machine, game)
+
+
 async def handle_make(state_machine, game, hw_module):
     """Logic for the MAKE button based on current state."""
     state = state_machine.state
@@ -186,14 +234,8 @@ async def handle_make(state_machine, game, hw_module):
     if state == State_Machine.PROFILE_SELECTION:
         await _handle_make_profile_selection(state_machine, game, hw_module)
 
-    elif state == State_Machine.SHOT_CLOCK_IDLE:
-        await hw_module.enter_shot_clock(state_machine, game)
-
-    elif state in [
-        State_Machine.COUNTDOWN_IN_PROGRESS,
-        State_Machine.COUNTDOWN_COMPLETE,
-    ]:
-        await _handle_make_countdown(state_machine, game, hw_module)
+    elif state == State_Machine.CONFIRM_RACK_END:
+        await _handle_make_confirm_rack_end(state_machine, game, hw_module)
 
     elif state == State_Machine.MENU:
         await _handle_make_menu(state_machine, game, hw_module)
@@ -207,11 +249,26 @@ async def handle_make(state_machine, game, hw_module):
     elif state in [State_Machine.APA_SKILL_LEVEL_P1, State_Machine.APA_SKILL_LEVEL_P2]:
         await _handle_make_skill_level(state_machine, game, hw_module)
 
+    elif state == State_Machine.APA_GAME_TYPE_SELECTION:
+        await _handle_make_game_type_selection(state_machine, game, hw_module)
+
     elif state == State_Machine.VICTORY:
         # After victory, return to profile selection
         game.profile_selection_index = 0
         state_machine.update_state(State_Machine.PROFILE_SELECTION)
         await hw_module.render_profile_selection(state_machine, game, clear_all=True)
+
+    # Delegate Game States to Rules
+    elif (
+        state
+        in [
+            State_Machine.SHOT_CLOCK_IDLE,
+            State_Machine.COUNTDOWN_IN_PROGRESS,
+            State_Machine.COUNTDOWN_COMPLETE,
+        ]
+        and game.rules
+    ):
+        await game.rules.handle_make(state_machine, game, hw_module)
 
 
 async def handle_new_rack(state_machine, game, hw_module):
@@ -233,38 +290,6 @@ async def handle_new_rack(state_machine, game, hw_module):
     await hw_module.enter_idle_mode(state_machine, game)
 
 
-def _process_extension(game):
-    """Internal helper to calculate if an extension can be applied and apply it."""
-    p1_can = game.player_1_shooting and game.player_1_extension_available
-    p2_can = game.player_2_shooting and game.player_2_extension_available
-
-    can_extend = False
-    if game.selected_profile in ["WNT", "BCA"] and (p1_can or p2_can):
-        if game.player_1_shooting:
-            game.player_1_extension_available = False
-        else:
-            game.player_2_extension_available = False
-        can_extend = True
-    elif game.selected_profile == "APA" and game.extension_available:
-        # Check if current player has timeouts remaining
-        has_timeout = False
-        if game.player_1_shooting:
-            if game.player_1_timeouts_remaining > 0:
-                has_timeout = True
-                game.player_1_timeouts_remaining -= 1
-        elif game.player_2_timeouts_remaining > 0:
-            has_timeout = True
-            game.player_2_timeouts_remaining -= 1
-
-        if has_timeout:
-            game.extension_available, game.extension_used = False, True
-            can_extend = True
-
-    if can_extend:
-        game.countdown += game.extension_duration
-    return can_extend
-
-
 async def handle_up(state_machine, game, hw_module):
     """Logic for the UP button."""
     state = state_machine.state
@@ -274,10 +299,6 @@ async def handle_up(state_machine, game, hw_module):
             game.profile_names
         )
         await hw_module.render_profile_selection(state_machine, game)
-
-    elif state == State_Machine.COUNTDOWN_IN_PROGRESS:
-        if _process_extension(game):
-            await hw_module.update_timer_display(state_machine, game)
 
     elif state == State_Machine.MENU:
         game.current_menu_index = (game.current_menu_index - 1) % len(game.menu_items)
@@ -297,6 +318,22 @@ async def handle_up(state_machine, game, hw_module):
         game.temp_setting_value = (game.temp_setting_value % 9) + 1
         player_num = 1 if state == State_Machine.APA_SKILL_LEVEL_P1 else 2
         await hw_module.render_skill_level_selection(state_machine, game, player_num)
+
+    elif state == State_Machine.APA_GAME_TYPE_SELECTION:
+        # Toggle between 0 (8-Ball) and 1 (9-Ball)
+        game.temp_setting_value = 1 - game.temp_setting_value
+        await hw_module.render_game_type_selection(state_machine, game)
+
+    # Delegate Game States to Rules
+    elif (
+        state
+        in [
+            State_Machine.SHOT_CLOCK_IDLE,
+            State_Machine.COUNTDOWN_IN_PROGRESS,
+        ]
+        and game.rules
+    ):
+        await game.rules.handle_up(state_machine, game, hw_module)
 
 
 async def handle_down(state_machine, game, hw_module):
@@ -330,32 +367,32 @@ async def handle_down(state_machine, game, hw_module):
         player_num = 1 if state == State_Machine.APA_SKILL_LEVEL_P1 else 2
         await hw_module.render_skill_level_selection(state_machine, game, player_num)
 
+    elif state == State_Machine.APA_GAME_TYPE_SELECTION:
+        # Toggle between 0 (8-Ball) and 1 (9-Ball)
+        game.temp_setting_value = 1 - game.temp_setting_value
+        await hw_module.render_game_type_selection(state_machine, game)
+
+    # Delegate Game States to Rules
+    elif (
+        state
+        in [
+            State_Machine.SHOT_CLOCK_IDLE,
+            State_Machine.COUNTDOWN_IN_PROGRESS,
+        ]
+        and game.rules
+    ):
+        await game.rules.handle_down(state_machine, game, hw_module)
+
 
 async def handle_miss(state_machine, game, hw_module):
     """Logic for the MISS button."""
     state = state_machine.state
 
-    if state in [State_Machine.COUNTDOWN_IN_PROGRESS, State_Machine.COUNTDOWN_COMPLETE]:
-        # Turn over
-        game.countdown = game.profile_based_countdown
-        game.inning_counter += 0.5
-        # Update menu values if applicable (though we are going back to IDLE)
-        if game.selected_profile == "APA":
-            game.menu_values[0] = game.player_1_score
-            game.menu_values[1] = game.player_2_score
-        else:
-            game.menu_values[0] = int(game.inning_counter)
-            game.menu_values[1] = game.rack_counter
-
-        game.break_shot = False
+    if state == State_Machine.CONFIRM_RACK_END:
+        # Cancel Confirmation
+        game.pending_rack_result = None
+        state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
         await hw_module.enter_idle_mode(state_machine, game)
-
-    elif state == State_Machine.SHOT_CLOCK_IDLE:
-        # Open Menu
-        if game.selected_profile != "Timeouts Mode":
-            game.current_menu_index = 0
-            state_machine.update_state(State_Machine.MENU)
-            await hw_module.render_menu(state_machine, game)
 
     elif state == State_Machine.MENU:
         # Exit Menu
@@ -376,3 +413,21 @@ async def handle_miss(state_machine, game, hw_module):
         game.profile_selection_index = 0
         state_machine.update_state(State_Machine.PROFILE_SELECTION)
         await hw_module.render_profile_selection(state_machine, game, clear_all=True)
+
+    elif state == State_Machine.APA_GAME_TYPE_SELECTION:
+        # Go back to P2 Skill Level Selection
+        state_machine.update_state(State_Machine.APA_SKILL_LEVEL_P2)
+        game.temp_setting_value = game.player_2_skill_level
+        await hw_module.render_skill_level_selection(state_machine, game, 2)
+
+    # Delegate Game States to Rules
+    elif (
+        state
+        in [
+            State_Machine.SHOT_CLOCK_IDLE,
+            State_Machine.COUNTDOWN_IN_PROGRESS,
+            State_Machine.COUNTDOWN_COMPLETE,
+        ]
+        and game.rules
+    ):
+        await game.rules.handle_miss(state_machine, game, hw_module)

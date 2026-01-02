@@ -2,12 +2,14 @@ class State_Machine:
     PROFILE_SELECTION = "profile_selection"
     APA_SKILL_LEVEL_P1 = "apa_skill_level_p1"
     APA_SKILL_LEVEL_P2 = "apa_skill_level_p2"
+    APA_GAME_TYPE_SELECTION = "apa_game_type_selection"
     SHOT_CLOCK_IDLE = "shot_clock_idle"
     COUNTDOWN_IN_PROGRESS = "countdown_in_progress"
     COUNTDOWN_COMPLETE = "countdown_complete"
     MENU = "menu"
     EDITING_VALUE = "editing_value"
     EXIT_MATCH_CONFIRMATION = "exit_match_confirmation"
+    CONFIRM_RACK_END = "confirm_rack_end"
     VICTORY = "victory"
 
     def __init__(self, initial_state=PROFILE_SELECTION):
@@ -28,6 +30,10 @@ class State_Machine:
     @property
     def apa_skill_level_p2(self):
         return self.state == self.APA_SKILL_LEVEL_P2
+
+    @property
+    def apa_game_type_selection(self):
+        return self.state == self.APA_GAME_TYPE_SELECTION
 
     @property
     def shot_clock_idle(self):
@@ -54,12 +60,18 @@ class State_Machine:
         return self.state == self.EXIT_MATCH_CONFIRMATION
 
     @property
+    def confirm_rack_end(self):
+        return self.state == self.CONFIRM_RACK_END
+
+    @property
     def victory(self):
         return self.state == self.VICTORY
 
 
 class Game_Stats:
     def __init__(self):
+        self.rules = None  # Holds the GameRules instance
+        self.pending_rack_result = None  # "win" or "lose" for 8-ball confirmation
         self.profile_based_countdown = 0
         self.countdown = 0
         self.extension_duration = 0

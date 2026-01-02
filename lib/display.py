@@ -170,12 +170,54 @@ async def render_skill_level_selection(state_machine, game, oled, player_num):
     display_text(oled, state_machine, str(sl), 50, 40, 3, True)
 
 
+async def render_game_type_selection(state_machine, game, oled):
+    """Renders the game type selection screen (8-Ball or 9-Ball)."""
+    display_clear(oled, "everything", send_payload=False)
+
+    display_text(oled, state_machine, "Select Game:", 15, 10, 1, False)
+
+    # temp_setting_value: 0 for 8-Ball, 1 for 9-Ball
+    game_type = "9-Ball" if game.temp_setting_value == 1 else "8-Ball"
+    display_text(oled, state_machine, game_type, 15, 30, 2, True)
+
+
 async def render_victory(state_machine, game, oled, winner_num):
     """Renders the victory screen."""
     display_clear(oled, "everything", send_payload=False)
 
     display_text(oled, state_machine, "VICTORY!", 10, 10, 2, False)
     display_text(oled, state_machine, f"Player {winner_num}", 0, 35, 2, False)
+
+    oled.show()
+
+
+async def render_message(state_machine, game, oled, message, font_size=1):
+    """Renders a generic message on the screen (e.g. for Confirmation)."""
+    display_clear(oled, "everything", send_payload=False)
+
+    lines = message.split("\n")
+
+    # Metrics
+    base_w = 8
+    base_h = 8
+    char_width = base_w * font_size
+    line_height = (base_h * font_size) + 4
+    total_height = len(lines) * line_height
+
+    # Vertical Start
+    y_pos = (64 - total_height) // 2
+    # Clamp to top if message is huge
+    y_pos = max(y_pos, 0)
+
+    for line in lines:
+        # Horizontal Start
+        text_width = len(line) * char_width
+        x_pos = (128 - text_width) // 2
+        # Clamp to left
+        x_pos = max(x_pos, 0)
+
+        display_text(oled, state_machine, line, int(x_pos), int(y_pos), font_size, False)
+        y_pos += line_height
 
     oled.show()
 

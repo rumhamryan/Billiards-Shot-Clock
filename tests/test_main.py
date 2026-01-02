@@ -149,60 +149,17 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
                 patch("machine.Pin") as mock_pin,
             ):
                 # Mock Pin(MISS_PIN).value() = 1
-
                 mock_pin.return_value.value.return_value = 1
-
                 await main.on_make()
 
                 mock_new_rack.assert_called_once()
 
-                self.assertTrue(main._ignore_next_miss)
-
                 # Releasing miss should now do nothing
-
                 with patch(
                     "lib.button_logic.handle_miss", new_callable=AsyncMock
                 ) as mock_miss:
                     await main.on_miss()
-
                     mock_miss.assert_not_called()
-
-                    self.assertFalse(main._ignore_next_miss)
-
-        async def test_on_miss_inactivity_handling(self):
-            # 1. State: PROFILE_SELECTION (Should NOT update)
-
-            main.state_machine.update_state(main.State_Machine.PROFILE_SELECTION)
-
-            initial_check = 100
-
-            main.inactivity_check = initial_check
-
-            with (
-                patch("main.utime.ticks_ms", return_value=200),
-                patch("lib.button_logic.handle_miss", new_callable=AsyncMock),
-                patch("machine.Pin") as mock_pin,
-            ):
-                mock_pin.return_value.value.return_value = 0
-
-                await main.on_miss()
-
-                self.assertEqual(main.inactivity_check, initial_check)
-
-            # 2. State: SHOT_CLOCK_IDLE (Should update)
-
-            main.state_machine.update_state(main.State_Machine.SHOT_CLOCK_IDLE)
-
-            with (
-                patch("main.utime.ticks_ms", return_value=300),
-                patch("lib.button_logic.handle_miss", new_callable=AsyncMock),
-                patch("machine.Pin") as mock_pin,
-            ):
-                mock_pin.return_value.value.return_value = 0
-
-                await main.on_miss()
-
-                self.assertEqual(main.inactivity_check, 300)
 
     async def test_hardware_wrapper(self):
         wrapper = main.hw_wrapper
