@@ -5,14 +5,21 @@ from lib.models import State_Machine
 
 
 def _calculate_apa_targets(game):
-    """Calculates player targets and timeouts based on skill levels and rules.json."""
+    """Calculates player targets and timeouts based on skill levels and rules_config."""
+    match_rules = game.rules_config.get("APA", {}).get(game.match_type, {})
+
+    if not match_rules:
+        # Fallback defaults if config missing
+        game.player_1_target = 14
+        game.player_2_target = 14
+        game.player_1_timeouts_per_rack = 1
+        game.player_1_timeouts_remaining = 1
+        game.player_2_timeouts_per_rack = 1
+        game.player_2_timeouts_remaining = 1
+        return
+
+    # Targets
     try:
-        with open("lib/rules.json") as f:
-            rules = json.load(f)
-
-        match_rules = rules.get("APA", {}).get(game.match_type, {})
-
-        # Targets
         if game.match_type == "9-Ball":
             game.player_1_target = match_rules["targets"][str(game.player_1_skill_level)]
             game.player_2_target = match_rules["targets"][str(game.player_2_skill_level)]
@@ -22,32 +29,26 @@ def _calculate_apa_targets(game):
             race = match_rules["race_grid"][p1_sl][p2_sl]
             game.player_1_target = race[0]
             game.player_2_target = race[1]
-
-        # Timeouts
-        timeout_rules = match_rules.get("timeouts", {"3": 2, "4": 1})
-
-        # Player 1
-        if game.player_1_skill_level <= 3:
-            game.player_1_timeouts_per_rack = timeout_rules["3"]
-        else:
-            game.player_1_timeouts_per_rack = timeout_rules["4"]
-        game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
-
-        # Player 2
-        if game.player_2_skill_level <= 3:
-            game.player_2_timeouts_per_rack = timeout_rules["3"]
-        else:
-            game.player_2_timeouts_per_rack = timeout_rules["4"]
-        game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
-
-    except (OSError, KeyError):
-        # Fallback defaults if file missing or invalid SL
+    except KeyError:
         game.player_1_target = 14
         game.player_2_target = 14
-        game.player_1_timeouts_per_rack = 1
-        game.player_1_timeouts_remaining = 1
-        game.player_2_timeouts_per_rack = 1
-        game.player_2_timeouts_remaining = 1
+
+    # Timeouts
+    timeout_rules = match_rules.get("timeouts", {"3": 2, "4": 1})
+
+    # Player 1
+    if game.player_1_skill_level <= 3:
+        game.player_1_timeouts_per_rack = timeout_rules["3"]
+    else:
+        game.player_1_timeouts_per_rack = timeout_rules["4"]
+    game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
+
+    # Player 2
+    if game.player_2_skill_level <= 3:
+        game.player_2_timeouts_per_rack = timeout_rules["3"]
+    else:
+        game.player_2_timeouts_per_rack = timeout_rules["4"]
+    game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
 
 
 async def _init_apa_selection(state_machine, game, hw_module):
@@ -60,40 +61,30 @@ async def _init_apa_selection(state_machine, game, hw_module):
 async def _init_wnt_selection(state_machine, game, hw_module):
     """Initializes the WNT match setup flow."""
     state_machine.update_state(State_Machine.WNT_TARGET_SELECTION)
-    # Load targets/timeouts from rules.json
-    try:
-        with open("lib/rules.json") as f:
-            rules = json.load(f)
-        wnt_config = rules.get("WNT", {})
-        targets = wnt_config.get("targets", [9])
-        game.temp_setting_value = targets[2] if len(targets) > 2 else targets[0]
-        game.player_1_timeouts_per_rack = wnt_config.get("timeouts", 1)
-        game.player_2_timeouts_per_rack = wnt_config.get("timeouts", 1)
-    except (OSError, KeyError):
-        game.temp_setting_value = 9
-        game.player_1_timeouts_per_rack = 1
-        game.player_2_timeouts_per_rack = 1
+
+    wnt_config = game.rules_config.get("WNT", {})
+    targets = wnt_config.get("targets", [5, 7, 9, 11, 13])
+    game.temp_setting_value = targets[2] if len(targets) > 2 else targets[0]
+
+    timeouts = wnt_config.get("timeouts", 1)
+    game.player_1_timeouts_per_rack = timeouts
+    game.player_2_timeouts_per_rack = timeouts
 
     await hw_module.render_wnt_target_selection(state_machine, game)
 
 
 async def _init_bca_selection(state_machine, game, hw_module):
     """Initializes the BCA match setup flow."""
-    try:
-        with open("lib/rules.json") as f:
-            rules = json.load(f)
-        bca_config = rules.get("BCA", {})
-        game.player_1_target = bca_config.get("target", 16)
-        game.player_2_target = bca_config.get("target", 16)
-        game.player_1_timeouts_per_rack = bca_config.get("timeouts", 0)
-        game.player_2_timeouts_per_rack = bca_config.get("timeouts", 0)
-    except (OSError, KeyError):
-        game.player_1_target, game.player_2_target = 16, 16
-        game.player_1_timeouts_per_rack, game.player_2_timeouts_per_rack = 0, 0
+    bca_config = game.rules_config.get("BCA", {})
+    game.player_1_target = bca_config.get("target", 16)
+    game.player_2_target = bca_config.get("target", 16)
+    game.player_1_timeouts_per_rack = bca_config.get("timeouts", 0)
+    game.player_2_timeouts_per_rack = bca_config.get("timeouts", 0)
 
-    game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
-    game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
-    game.player_1_score, game.player_2_score = 0, 0
+    game.reset_rack_stats()
+    game.set_score(1, 0)
+    game.set_score(2, 0)
+
     game.rules = EightBallRules()
     game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
     game.menu_values = [
@@ -184,14 +175,9 @@ async def _handle_make_game_type_selection(state_machine, game, hw_module):
 
     # Initialize APA stats
     game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
-    game.player_1_score = 0
-    game.player_2_score = 0
-    game.menu_values = [
-        game.player_1_score,
-        game.player_2_score,
-        None,
-        game.speaker_muted,
-    ]
+    game.set_score(1, 0)
+    game.set_score(2, 0)
+
     state_machine.game_on = True
     state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
     await hw_module.enter_idle_mode(state_machine, game)
@@ -205,31 +191,18 @@ async def _handle_make_wnt_target_selection(state_machine, game, hw_module):
     # WNT uses Games Won scoring similar to 8-Ball
     game.rules = EightBallRules()
 
-    # Timeouts from rules.json
-    try:
-        with open("lib/rules.json") as f:
-            rules = json.load(f)
-        timeouts = rules.get("WNT", {}).get("timeouts", 1)
-        game.player_1_timeouts_per_rack = timeouts
-        game.player_2_timeouts_per_rack = timeouts
-    except (OSError, KeyError):
-        game.player_1_timeouts_per_rack = 1
-        game.player_2_timeouts_per_rack = 1
+    # Timeouts from rules_config
+    wnt_config = game.rules_config.get("WNT", {})
+    timeouts = wnt_config.get("timeouts", 1)
+    game.player_1_timeouts_per_rack = timeouts
+    game.player_2_timeouts_per_rack = timeouts
 
-    game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
-    game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
-
-    game.player_1_score = 0
-    game.player_2_score = 0
+    game.reset_rack_stats()
+    game.set_score(1, 0)
+    game.set_score(2, 0)
 
     # Menu setup
     game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
-    game.menu_values = [
-        game.player_1_score,
-        game.player_2_score,
-        None,
-        game.speaker_muted,
-    ]
 
     state_machine.game_on = True
     state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
@@ -256,17 +229,17 @@ async def _handle_make_editing(state_machine, game, hw_module):
     # Apply changes to actual game stats
     sel = game.menu_items[game.current_menu_index]
     if sel == "P1":
-        game.player_1_score = int(game.temp_setting_value)
-        game.menu_values[0] = game.player_1_score
+        game.set_score(1, int(game.temp_setting_value))
     elif sel == "P2":
-        game.player_2_score = int(game.temp_setting_value)
-        game.menu_values[1] = game.player_2_score
+        game.set_score(2, int(game.temp_setting_value))
     elif sel == "Rack":
         game.rack_counter = int(game.temp_setting_value)
         game.menu_values[1] = game.rack_counter
     elif sel == "Mute":
         game.speaker_muted = game.temp_setting_value
-        game.menu_values[3] = game.speaker_muted
+        if "Mute" in game.menu_items:
+            idx = game.menu_items.index("Mute")
+            game.menu_values[idx] = game.speaker_muted
     elif sel == "Inning":
         game.inning_counter = float(game.temp_setting_value)
         game.menu_values[0] = int(game.inning_counter)
@@ -293,15 +266,15 @@ async def _handle_make_confirm_rack_end(state_machine, game, hw_module):
     # Apply Score
     if game.pending_rack_result == "win":
         if game.player_1_shooting:
-            game.player_1_score += 1
+            game.add_score(1, 1)
         else:
-            game.player_2_score += 1
+            game.add_score(2, 1)
     elif game.pending_rack_result == "lose":
         # Opponent wins
         if game.player_1_shooting:
-            game.player_2_score += 1
+            game.add_score(2, 1)
         else:
-            game.player_1_score += 1
+            game.add_score(1, 1)
         # Switch shooter as current shooter lost the rack
         game.inning_counter += 0.5
 
@@ -310,12 +283,7 @@ async def _handle_make_confirm_rack_end(state_machine, game, hw_module):
 
     # Reset Timeouts (APA/WNT/BCA)
     if game.selected_profile in ["APA", "WNT", "BCA"]:
-        game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
-        game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
-
-    # Update Menu Values
-    game.menu_values[0] = game.player_1_score
-    game.menu_values[1] = game.player_2_score
+        game.reset_rack_stats()
 
     # Clear pending
     game.pending_rack_result = None
@@ -388,15 +356,14 @@ async def handle_new_rack(state_machine, game, hw_module):
         return
 
     game.rack_counter += 1
-    game.break_shot = True
 
     # Update menu values for non-APA/WNT/BCA
     if game.selected_profile not in ["APA", "WNT", "BCA"]:
         game.menu_values[1] = game.rack_counter
+        game.break_shot = True
     else:
         # Reset APA/WNT/BCA timeouts for new rack
-        game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
-        game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
+        game.reset_rack_stats()
 
     await hw_module.enter_idle_mode(state_machine, game)
 

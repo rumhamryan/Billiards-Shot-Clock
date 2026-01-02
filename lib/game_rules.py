@@ -139,24 +139,19 @@ class NineBallRules(GameRules):
                 return
             # Immediate New Rack
             game.rack_counter += 1
-            game.break_shot = True
 
             # APA 9-Ball Score Increment
             if game.selected_profile == "APA":
-                if game.inning_counter % 1 == 0:
-                    game.player_1_score += 1
+                if game.player_1_shooting:
+                    game.add_score(1, 1)
                 else:
-                    game.player_2_score += 1
-                # Update Menu Values (Scores for APA 9-Ball)
-                game.menu_values[0] = game.player_1_score
-                game.menu_values[1] = game.player_2_score
+                    game.add_score(2, 1)
             else:
                 # Update Menu Values (Rack for non-APA)
                 game.menu_values[1] = game.rack_counter
 
             # Reset APA Timeouts
-            game.player_1_timeouts_remaining = game.player_1_timeouts_per_rack
-            game.player_2_timeouts_remaining = game.player_2_timeouts_per_rack
+            game.reset_rack_stats()
 
             await hw_module.enter_idle_mode(state_machine, game)
 
@@ -176,13 +171,10 @@ class NineBallRules(GameRules):
 
             # APA 9-Ball Score Decrement
             if game.selected_profile == "APA":
-                if game.inning_counter % 1 == 0:
-                    game.player_1_score = max(0, game.player_1_score - 1)
+                if game.player_1_shooting:
+                    game.add_score(1, -1)
                 else:
-                    game.player_2_score = max(0, game.player_2_score - 1)
-                # Update Menu Values
-                game.menu_values[0] = game.player_1_score
-                game.menu_values[1] = game.player_2_score
+                    game.add_score(2, -1)
             else:
                 # Update Menu Values
                 game.menu_values[1] = game.rack_counter
@@ -280,8 +272,10 @@ class StandardRules(GameRules):
             game.inning_counter += 0.5
             game.extension_available, game.extension_used = True, False
             game.break_shot = False
-            # Update menu (inning/rack)
-            game.menu_values[0] = int(game.inning_counter)
+            # Update menu (inning/rack) if they exist
+            if "Inning" in game.menu_items:
+                idx = game.menu_items.index("Inning")
+                game.menu_values[idx] = int(game.inning_counter)
             await hw_module.enter_idle_mode(state_machine, game)
         elif state == State_Machine.SHOT_CLOCK_IDLE:
             game.current_menu_index = 0

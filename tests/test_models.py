@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import MagicMock, mock_open, patch
 
 from lib.models import Game_Stats, State_Machine
 
@@ -47,9 +48,9 @@ class TestModels(unittest.TestCase):
         # Mock dependencies
         oled = "OLED_MOCK"
         sm = "SM_MOCK"
-        clear_mock = unittest.mock.MagicMock()
-        text_mock = unittest.mock.MagicMock()
-        shape_mock = unittest.mock.MagicMock()
+        clear_mock = MagicMock()
+        text_mock = MagicMock()
+        shape_mock = MagicMock()
 
         game = Game_Stats()
         game.menu_items = ["A", "B", "C"]
@@ -72,9 +73,9 @@ class TestModels(unittest.TestCase):
         # Mock dependencies
         oled = "OLED_MOCK"
         sm = "SM_MOCK"
-        clear_mock = unittest.mock.MagicMock()
-        text_mock = unittest.mock.MagicMock()
-        shape_mock = unittest.mock.MagicMock()
+        clear_mock = MagicMock()
+        text_mock = MagicMock()
+        shape_mock = MagicMock()
 
         game = Game_Stats()
         game.menu_items = ["A", "B", "C"]
@@ -91,8 +92,35 @@ class TestModels(unittest.TestCase):
         clear_mock.assert_not_called()
         text_mock.assert_not_called()
 
+    def test_load_rules_json_error(self):
+        with patch("builtins.open", mock_open(read_data="invalid json")):
+            game = Game_Stats()
+            self.assertEqual(game.rules_config, {})
+
+    def test_add_score_p2(self):
+        game = Game_Stats()
+        game.menu_items = ["P1", "P2"]
+        game.menu_values = [0, 0]
+        game.add_score(2, 5)
+        self.assertEqual(game.player_2_score, 5)
+        self.assertEqual(game.menu_values[1], 5)
+
+    def test_set_score_p2(self):
+        game = Game_Stats()
+        game.menu_items = ["P1", "P2"]
+        game.menu_values = [0, 0]
+        game.set_score(2, 10)
+        self.assertEqual(game.player_2_score, 10)
+        self.assertEqual(game.menu_values[1], 10)
+
+    def test_add_score_no_menu_item(self):
+        game = Game_Stats()
+        game.menu_items = ["Inning"]  # No P1
+        game.player_1_score = 0
+        game.add_score(1, 1)
+        self.assertEqual(game.player_1_score, 1)
+        # Should not crash
+
 
 if __name__ == "__main__":
-    import unittest.mock
-
     unittest.main()

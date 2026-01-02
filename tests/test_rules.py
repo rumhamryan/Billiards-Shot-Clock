@@ -1,8 +1,66 @@
+import json
 import unittest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
-from lib.game_rules import EightBallRules, NineBallRules, StandardRules
+import lib.button_logic as logic
+from lib.game_rules import EightBallRules, GameRules, NineBallRules, StandardRules
 from lib.models import Game_Stats, State_Machine
+
+
+class TestApaRules(unittest.TestCase):
+    def setUp(self):
+        self.game = Game_Stats()
+
+    def test_calculate_apa_targets_9ball(self):
+        self.game.match_type = "9-Ball"
+        self.game.player_1_skill_level = 5
+        self.game.player_2_skill_level = 3
+
+        mock_rules = {
+            "APA": {
+                "9-Ball": {"targets": {"3": 25, "5": 38}, "timeouts": {"3": 2, "4": 1}}
+            }
+        }
+
+        with patch("builtins.open", mock_open(read_data=json.dumps(mock_rules))):
+            logic._calculate_apa_targets(self.game)
+
+        self.assertEqual(self.game.player_1_target, 38)
+        self.assertEqual(self.game.player_2_target, 25)
+        self.assertEqual(self.game.player_1_timeouts_per_rack, 1)
+        self.assertEqual(self.game.player_2_timeouts_per_rack, 2)
+
+    def test_calculate_apa_targets_8ball(self):
+        self.game.match_type = "8-Ball"
+        self.game.player_1_skill_level = 5
+        self.game.player_2_skill_level = 3
+
+        mock_rules = {
+            "APA": {
+                "8-Ball": {
+                    "race_grid": {"5": {"3": [4, 2]}},
+                    "timeouts": {"3": 2, "4": 1},
+                }
+            }
+        }
+
+        with patch("builtins.open", mock_open(read_data=json.dumps(mock_rules))):
+            logic._calculate_apa_targets(self.game)
+
+        self.assertEqual(self.game.player_1_target, 4)
+        self.assertEqual(self.game.player_2_target, 2)
+        self.assertEqual(self.game.player_1_timeouts_per_rack, 1)
+        self.assertEqual(self.game.player_2_timeouts_per_rack, 2)
+
+    def test_calculate_apa_targets_invalid_sl_fallback(self):
+        self.game.match_type = "9-Ball"
+        self.game.player_1_skill_level = 99  # Invalid
+
+        mock_rules = {"APA": {"9-Ball": {"targets": {"3": 25}, "timeouts": {"3": 2}}}}
+        with patch("builtins.open", mock_open(read_data=json.dumps(mock_rules))):
+            logic._calculate_apa_targets(self.game)
+
+        self.assertEqual(self.game.player_1_target, 14)  # Fallback
 
 
 class TestRules(unittest.IsolatedAsyncioTestCase):
@@ -16,6 +74,43 @@ class TestRules(unittest.IsolatedAsyncioTestCase):
         self.hw.render_message = AsyncMock()
         self.hw.update_timer_display = AsyncMock()
         self.hw.render_victory = AsyncMock()
+
+    def test_base_rules_pass_methods(self):
+        # Cover the empty base class methods
+        base = GameRules()
+        import asyncio
+
+        async def run_passes():
+            await base.handle_make(None, None, None)
+            await base.handle_miss(None, None, None)
+            await base.handle_up(None, None, None)
+            await base.handle_down(None, None, None)
+
+        asyncio.run(run_passes())
+
+    async def test_cancel_extension_logic_threshold_exact(self):
+        rule = NineBallRules()
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.selected_profile = "APA"
+        self.game.inning_counter = 1.0
+        self.game.extension_duration = 25
+        self.game.extension_used = True
+        self.game.countdown = 30  # Boundary
+
+        self.assertTrue(rule._cancel_extension(self.game))
+        self.assertEqual(self.game.countdown, 5)  # 30 - 25
+
+    async def test_cancel_extension_logic_threshold_fail(self):
+        rule = NineBallRules()
+        self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
+        self.game.selected_profile = "APA"
+        self.game.inning_counter = 1.0
+        self.game.extension_duration = 25
+        self.game.extension_used = True
+        self.game.countdown = 29  # Below boundary
+
+        self.assertFalse(rule._cancel_extension(self.game))
+        self.assertEqual(self.game.countdown, 29)
 
     # --- Nine Ball Rules ---
 

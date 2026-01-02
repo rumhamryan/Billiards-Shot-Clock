@@ -1,3 +1,6 @@
+import json
+
+
 class State_Machine:
     PROFILE_SELECTION = "profile_selection"
     APA_SKILL_LEVEL_P1 = "apa_skill_level_p1"
@@ -84,7 +87,17 @@ class State_Machine:
 class Game_Stats:
     def __init__(self):
         self.speaker_muted = False
+        self.rules_config = {}
+        self._load_rules()
         self._set_defaults()
+
+    def _load_rules(self):
+        """Loads rules from JSON file once."""
+        try:
+            with open("lib/rules.json") as f:
+                self.rules_config = json.load(f)
+        except (OSError, ValueError):
+            self.rules_config = {}
 
     def _set_defaults(self):
         """Sets the default values for game statistics."""
@@ -144,6 +157,40 @@ class Game_Stats:
         # New State Tracking Variables
         self.profile_selection_index = 0
         self.temp_setting_value = None
+
+    def add_score(self, player_num, points=1):
+        """Atomically increments player score and updates menu."""
+        if player_num == 1:
+            self.player_1_score += points
+            if "P1" in self.menu_items:
+                idx = self.menu_items.index("P1")
+                self.menu_values[idx] = self.player_1_score
+        else:
+            self.player_2_score += points
+            if "P2" in self.menu_items:
+                idx = self.menu_items.index("P2")
+                self.menu_values[idx] = self.player_2_score
+
+    def set_score(self, player_num, value):
+        """Atomically sets player score and updates menu."""
+        if player_num == 1:
+            self.player_1_score = value
+            if "P1" in self.menu_items:
+                idx = self.menu_items.index("P1")
+                self.menu_values[idx] = self.player_1_score
+        else:
+            self.player_2_score = value
+            if "P2" in self.menu_items:
+                idx = self.menu_items.index("P2")
+                self.menu_values[idx] = self.player_2_score
+
+    def reset_rack_stats(self):
+        """Resets rack-level stats like timeouts and break flags."""
+        self.player_1_timeouts_remaining = self.player_1_timeouts_per_rack
+        self.player_2_timeouts_remaining = self.player_2_timeouts_per_rack
+        self.extension_available = True
+        self.extension_used = False
+        self.break_shot = True
 
     @property
     def player_1_shooting(self):
