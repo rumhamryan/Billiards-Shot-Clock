@@ -79,7 +79,7 @@ def render_scoreline(oled, state_machine, game, send_payload=True):
     """Renders the scoreline/bottom row based on the selected profile."""
     if game.timeouts_only:
         display_text(oled, state_machine, "Timeouts Mode", 12, 57, 1, False)
-    elif game.selected_profile in ["APA", "WNT", "BCA"]:
+    elif game.selected_profile in ["APA", "WNT", "BCA", "Ultimate Pool"]:
         # Draw player_1 score/target_score
         score_1, target_1 = game.player_1_score, game.player_1_target
         shift = 0
@@ -155,7 +155,11 @@ async def render_profile_selection(state_machine, game, oled, clear_all=False):
     name = profile_list[idx]
 
     display_text(oled, state_machine, "Select Game:", 15, 10, 1, False)
-    display_text(oled, state_machine, str(name), 25, 30, 3, True)
+    if str(name) == "Ultimate Pool":
+        display_text(oled, state_machine, "Ultimate", 0, 30, 2, False)
+        display_text(oled, state_machine, "Pool", 30, 48, 2, True)
+    else:
+        display_text(oled, state_machine, str(name), 25, 30, 3, True)
 
 
 async def render_skill_level_selection(state_machine, game, oled, player_num):

@@ -111,8 +111,8 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_make_profile_selection_wnt(self):
         self.sm.update_state(State_Machine.PROFILE_SELECTION)
-        self.game.profile_names = ["APA", "BCA", "WNT", "Timeouts Mode"]
-        self.game.profile_selection_index = 2  # WNT
+        # Sorted full list: APA, BCA, Timeouts Mode, Ultimate Pool, WNT
+        self.game.profile_selection_index = 4  # WNT
 
         await logic.handle_make(self.sm, self.game, self.hw)
 
@@ -226,7 +226,7 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
 
     async def test_timeouts_mode_menu_items(self):
         self.sm.update_state(State_Machine.PROFILE_SELECTION)
-        self.game.profile_selection_index = 3  # Timeouts Mode
+        self.game.profile_selection_index = 2  # Timeouts Mode
 
         await logic.handle_make(self.sm, self.game, self.hw)
 

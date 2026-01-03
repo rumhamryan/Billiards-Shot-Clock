@@ -35,5 +35,9 @@
   "WNT": {
     "targets": [5, 7, 9, 11, 13],
     "timeouts": 1
+  },
+  "Ultimate Pool": {
+    "target": 5,
+    "timeouts": 1
   }
 } 

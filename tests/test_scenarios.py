@@ -158,7 +158,7 @@ class TestScenarios(unittest.IsolatedAsyncioTestCase):
 
     async def test_timeouts_mode_flow(self):
         self.sm.update_state(State_Machine.PROFILE_SELECTION)
-        self.game.profile_selection_index = 3  # Timeouts Mode
+        self.game.profile_selection_index = 2  # Timeouts Mode
         await logic.handle_make(self.sm, self.game, self.hw)
 
         self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)

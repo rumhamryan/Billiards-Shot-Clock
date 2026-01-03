@@ -129,9 +129,12 @@ class Game_Stats:
             "APA": {"timer_duration": 20, "extension_duration": 25},
             "WNT": {"timer_duration": 30, "extension_duration": 30},
             "BCA": {"timer_duration": 45, "extension_duration": 0},
+            "Ultimate Pool": {"timer_duration": 30, "extension_duration": 30},
             "Timeouts Mode": {"timer_duration": 60, "extension_duration": 0},
         }
-        self.profile_names = ["APA", "BCA", "WNT", "Timeouts Mode"]
+        self.profile_names = sorted(
+            ["APA", "BCA", "WNT", "Ultimate Pool", "Timeouts Mode"]
+        )
         self.selected_profile = None
         self.timeouts_only = False
         # Menu Order: Inning, Rack, Exit Match, Mute

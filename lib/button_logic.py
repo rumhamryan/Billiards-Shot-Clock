@@ -137,8 +137,32 @@ async def _handle_make_profile_selection(state_machine, game, hw_module):
         await _init_wnt_selection(state_machine, game, hw_module)
     elif selected_name == "BCA":
         await _init_bca_selection(state_machine, game, hw_module)
+    elif selected_name == "Ultimate Pool":
+        await _init_ultimate_selection(state_machine, game, hw_module)
     else:
         await _init_standard_selection(state_machine, game, hw_module, selected_name)
+
+
+async def _init_ultimate_selection(state_machine, game, hw_module):
+    """Initializes the Ultimate Pool match setup flow."""
+    up_config = game.rules_config.get("Ultimate Pool", {})
+    game.player_1_target = up_config.get("target", 5)
+    game.player_2_target = up_config.get("target", 5)
+
+    timeouts = up_config.get("timeouts", 1)
+    game.player_1_timeouts_per_rack = timeouts
+    game.player_2_timeouts_per_rack = timeouts
+
+    game.reset_rack_stats()
+    game.set_score(1, 0)
+    game.set_score(2, 0)
+
+    game.rules = EightBallRules()
+    game.menu_items = ["P1", "P2", "Exit Match", "Mute"]
+
+    state_machine.game_on = True
+    state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
+    await hw_module.enter_idle_mode(state_machine, game)
 
 
 async def _handle_make_skill_level(state_machine, game, hw_module):
@@ -281,8 +305,8 @@ async def _handle_make_confirm_rack_end(state_machine, game, hw_module):
     # Update Rack
     game.rack_counter += 1
 
-    # Reset Timeouts (APA/WNT/BCA)
-    if game.selected_profile in ["APA", "WNT", "BCA"]:
+    # Reset Timeouts (APA/WNT/BCA/Ultimate Pool)
+    if game.selected_profile in ["APA", "WNT", "BCA", "Ultimate Pool"]:
         game.reset_rack_stats()
 
     # Clear pending
@@ -365,12 +389,12 @@ async def handle_new_rack(state_machine, game, hw_module):
 
     game.rack_counter += 1
 
-    # Update menu values for non-APA/WNT/BCA
-    if game.selected_profile not in ["APA", "WNT", "BCA"]:
+    # Update menu values for non-APA/WNT/BCA/Ultimate Pool
+    if game.selected_profile not in ["APA", "WNT", "BCA", "Ultimate Pool"]:
         game.menu_values[1] = game.rack_counter
         game.break_shot = True
     else:
-        # Reset APA/WNT/BCA timeouts for new rack
+        # Reset APA/WNT/BCA/Ultimate Pool timeouts for new rack
         game.reset_rack_stats()
 
     await hw_module.enter_idle_mode(state_machine, game)
