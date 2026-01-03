@@ -223,6 +223,32 @@ class TestScenarios(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(self.game.match_timer_running)
 
+    async def test_ultimate_pool_shot_clock_reduction_rule(self):
+        # 1. Setup
+        self.sm.update_state(State_Machine.PROFILE_SELECTION)
+        self.game.profile_selection_index = 3  # Ultimate Pool
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.profile_based_countdown, 30)
+
+        # 2. Simulate match timer dropping to 9:59 (in main.py logic)
+        self.game.match_countdown = 599
+        self.game.match_timer_running = True
+        self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+
+        # We manually trigger the logic that main.py's timer_worker would run
+        if self.game.match_countdown < 600:
+            self.game.profile_based_countdown = 15
+            if self.sm.shot_clock_idle:
+                self.game.countdown = 15
+
+        self.assertEqual(self.game.profile_based_countdown, 15)
+        self.assertEqual(self.game.countdown, 15)
+
+        # 3. Verify next shot starts at 15
+        await logic.handle_make(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.countdown, 15)
+
     # --- Timeouts Mode Scenarios ---
 
     async def test_timeouts_mode_flow(self):

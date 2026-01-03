@@ -172,9 +172,20 @@ def render_scoreline(
             display_text(oled, state_machine, f"{target_2}", 112 + t2_shift, 57, 1, False)
 
         if game.selected_profile == "Ultimate Pool":
-            render_match_timer(
-                oled, state_machine, game, force_all=force_match_timer, send_payload=False
-            )
+            # Don't render match timer in Menu or Exit Confirmation
+            no_match_timer_states = [
+                State_Machine.MENU,
+                State_Machine.EDITING_VALUE,
+                State_Machine.EXIT_MATCH_CONFIRMATION,
+            ]
+            if state_machine.state not in no_match_timer_states:
+                render_match_timer(
+                    oled,
+                    state_machine,
+                    game,
+                    force_all=force_match_timer,
+                    send_payload=False,
+                )
         elif not suppress_scores:
             # Draw the current shooter indicator
             if game.inning_counter % 1 == 0:

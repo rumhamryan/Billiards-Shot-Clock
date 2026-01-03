@@ -134,6 +134,13 @@ async def timer_worker():
             is_up = game.selected_profile == "Ultimate Pool"
             if is_up and game.match_timer_running and game.match_countdown > 0:
                 game.match_countdown -= 1
+
+                # Rule: Shot clock becomes 15s when match < 10 mins
+                if game.match_countdown < 600 and game.profile_based_countdown != 15:
+                    game.profile_based_countdown = 15
+                    if state_machine.shot_clock_idle:
+                        game.countdown = 15
+
                 # Refresh display
                 # If shot clock isn't running, we call update_timer_display here.
                 # If it IS running, _handle_countdown_tick -> _update_clock_display
