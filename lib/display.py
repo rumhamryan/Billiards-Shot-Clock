@@ -138,29 +138,41 @@ def render_match_timer(oled, state_machine, game, force_all=False, send_payload=
 # High Level Logic Rendering
 
 
-def render_scoreline(oled, state_machine, game, send_payload=True):
+def render_scoreline(
+    oled,
+    state_machine,
+    game,
+    send_payload=True,
+    suppress_scores=False,
+    force_match_timer=False,
+):
     """Renders the scoreline/bottom row based on the selected profile."""
     if game.timeouts_only:
         display_text(oled, state_machine, "Timeouts Mode", 12, 57, 1, False)
     elif game.selected_profile in ["APA", "WNT", "BCA", "Ultimate Pool"]:
-        # Draw player_1 score/target_score
-        score_1, target_1 = game.player_1_score, game.player_1_target
-        shift = 0
-        if score_1 < 10:
-            shift = 7
-        display_text(oled, state_machine, f"{score_1}", 0, 57, 1, False)
-        display_text(oled, state_machine, "/", 15 - shift, 57, 1, False)
-        display_text(oled, state_machine, f"{target_1}", 23 - shift, 57, 1, False)
+        if not suppress_scores:
+            # Draw player_1 score/target_score
+            score_1, target_1 = game.player_1_score, game.player_1_target
+            shift = 0
+            if score_1 < 10:
+                shift = 7
+            display_text(oled, state_machine, f"{score_1}", 0, 57, 1, False)
+            display_text(oled, state_machine, "/", 15 - shift, 57, 1, False)
+            display_text(oled, state_machine, f"{target_1}", 23 - shift, 57, 1, False)
 
-        # Draw player_2 score/target_score
-        score_2, target_2 = game.player_2_score, game.player_2_target
-        if score_2 < 10:
-            shift = 7
-        display_text(oled, state_machine, f"{score_2}", 89 + shift, 57, 1, False)
-        display_text(oled, state_machine, "/", 104, 57, 1, False)
-        display_text(oled, state_machine, f"{target_2}", 112, 57, 1, False)
+            # Draw player_2 score/target_score
+            score_2, target_2 = game.player_2_score, game.player_2_target
+            if score_2 < 10:
+                shift = 7
+            display_text(oled, state_machine, f"{score_2}", 89 + shift, 57, 1, False)
+            display_text(oled, state_machine, "/", 104, 57, 1, False)
+            display_text(oled, state_machine, f"{target_2}", 112, 57, 1, False)
 
-        if game.selected_profile != "Ultimate Pool":
+        if game.selected_profile == "Ultimate Pool":
+            render_match_timer(
+                oled, state_machine, game, force_all=force_match_timer, send_payload=False
+            )
+        elif not suppress_scores:
             # Draw the current shooter indicator
             if game.inning_counter % 1 == 0:
                 display_shape(oled, "rect", 57, 57, 7, 7, True, False)
@@ -200,7 +212,7 @@ async def enter_idle_mode(state_machine, game, oled):
         game.countdown = game.profile_based_countdown
 
     if game.selected_profile == "Ultimate Pool":
-        # Full render of match timer
+        # Full render of match timer (at y=57 via helper)
         render_match_timer(oled, state_machine, game, force_all=True, send_payload=False)
         # Render Shot Clock (Standard size/pos)
         display_text(
@@ -216,12 +228,29 @@ async def enter_shot_clock(state_machine, game, oled):
 
 async def update_timer_display(state_machine, game, oled):
     if game.selected_profile == "Ultimate Pool":
-        # Clear only shot clock area
-        display_clear(oled, "shot_clock_full", send_payload=False)
-        display_text(
-            oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8, False
-        )
-        # Efficiently update match timer digits
+        # If we are in a state with an overlay message, DO NOT clear the full area
+        # as it would wipe the message. Only update match timer digits.
+        overlay_states = [
+            State_Machine.CONFIRM_RACK_END,
+            State_Machine.MENU,
+            State_Machine.EDITING_VALUE,
+            State_Machine.EXIT_MATCH_CONFIRMATION,
+        ]
+
+        if state_machine.state not in overlay_states:
+            # Clear and update shot clock
+            display_clear(oled, "shot_clock_full", send_payload=False)
+            display_text(
+                oled,
+                state_machine,
+                process_timer_duration(game.countdown),
+                0,
+                0,
+                8,
+                False,
+            )
+
+        # Always update match timer (helper handles individual digit clearing)
         render_match_timer(oled, state_machine, game, force_all=False, send_payload=True)
     else:
         display_clear(oled, "shot_clock_digit_1", "shot_clock_digit_2")
@@ -316,6 +345,16 @@ async def render_message(state_machine, game, oled, message, font_size=1):
 
         display_text(oled, state_machine, line, int(x_pos), int(y_pos), font_size, False)
         y_pos += line_height
+
+    # Re-render scoreline at the bottom, suppressing scores and forcing match timer redraw
+    render_scoreline(
+        oled,
+        state_machine,
+        game,
+        False,
+        suppress_scores=True,
+        force_match_timer=True,
+    )
 
     oled.show()
 
