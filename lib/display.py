@@ -162,11 +162,14 @@ def render_scoreline(
 
             # Draw player_2 score/target_score
             score_2, target_2 = game.player_2_score, game.player_2_target
-            if score_2 < 10:
-                shift = 7
-            display_text(oled, state_machine, f"{score_2}", 89 + shift, 57, 1, False)
-            display_text(oled, state_machine, "/", 104, 57, 1, False)
-            display_text(oled, state_machine, f"{target_2}", 112, 57, 1, False)
+            s2_shift = 7 if score_2 < 10 else 0
+            t2_shift = 8 if target_2 < 10 else 0
+
+            display_text(
+                oled, state_machine, f"{score_2}", 89 + s2_shift + t2_shift, 57, 1, False
+            )
+            display_text(oled, state_machine, "/", 104 + t2_shift, 57, 1, False)
+            display_text(oled, state_machine, f"{target_2}", 112 + t2_shift, 57, 1, False)
 
         if game.selected_profile == "Ultimate Pool":
             render_match_timer(

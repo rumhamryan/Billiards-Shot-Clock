@@ -24,8 +24,28 @@ class TestDisplayUnits(unittest.IsolatedAsyncioTestCase):
 
         display.render_scoreline(self.oled, self.sm, self.game, send_payload=True)
 
-        # P1 score 10 starts at x=0
+        # P1 score 10 starts at x=0, / at 15, target 38 at 23
         self.oled.text_scaled.assert_any_call("10", 0, 57, 1)
+        self.oled.text_scaled.assert_any_call("/", 15, 57, 1)
+        self.oled.text_scaled.assert_any_call("38", 23, 57, 1)
+
+        # P2 score 5 (single digit) at 89+7=96, / at 104, target 14 at 112
+        self.oled.text_scaled.assert_any_call("5", 96, 57, 1)
+        self.oled.text_scaled.assert_any_call("/", 104, 57, 1)
+        self.oled.text_scaled.assert_any_call("14", 112, 57, 1)
+
+    def test_render_scoreline_p2_single_digit_target_shift(self):
+        self.game.selected_profile = "APA"
+        self.game.player_2_score = 10
+        self.game.player_2_target = 5  # Single digit
+
+        display.render_scoreline(self.oled, self.sm, self.game)
+
+        # t2_shift = 8. s2_shift = 0.
+        # Score 10 at 89+8=97. / at 104+8=112. Target 5 at 112+8=120.
+        self.oled.text_scaled.assert_any_call("10", 97, 57, 1)
+        self.oled.text_scaled.assert_any_call("/", 112, 57, 1)
+        self.oled.text_scaled.assert_any_call("5", 120, 57, 1)
 
     def test_display_timeouts_logic(self):
         # 2 timeouts
