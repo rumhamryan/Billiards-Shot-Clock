@@ -37,6 +37,7 @@ class TestModels(unittest.TestCase):
     def test_game_stats_defaults(self):
         game = Game_Stats()
         self.assertEqual(game.profile_based_countdown, 0)
+        self.assertEqual(game.match_countdown, 1800)
         self.assertEqual(game.inning_counter, 1.0)
         self.assertEqual(game.game_profiles["APA"]["timer_duration"], 20)
         self.assertTrue(game.extension_available)

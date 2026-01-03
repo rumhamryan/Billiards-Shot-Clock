@@ -49,29 +49,43 @@ class TestScenarios(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.game.match_type, "8-Ball")
 
     async def test_apa_9ball_happy_path_victory(self):
+        # 1. Setup APA 9-Ball SL 3 for both
         self.sm.update_state(State_Machine.PROFILE_SELECTION)
+        self.game.profile_selection_index = 0  # APA
+
+        # Manually inject mock config
         self.game.rules_config = {
             "APA": {"9-Ball": {"targets": {"3": 2}, "timeouts": {"3": 2}}}
         }
 
-        # Progress setup
-        await logic.handle_make(self.sm, self.game, self.hw)  # To SL P1
-        await logic.handle_make(self.sm, self.game, self.hw)  # To SL P2
-        await logic.handle_make(self.sm, self.game, self.hw)  # To Game Type
+        # To SL P1
+        await logic.handle_make(self.sm, self.game, self.hw)
+        # To SL P2 (Sets P1 SL to 3)
+        await logic.handle_make(self.sm, self.game, self.hw)
+        # To Game Type (Sets P2 SL to 3)
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertEqual(self.game.player_1_skill_level, 3)
+        self.assertEqual(self.game.player_2_skill_level, 3)
+
         self.sm.update_state(State_Machine.APA_GAME_TYPE_SELECTION)
         self.game.temp_setting_value = 1  # 9-Ball
-        await logic.handle_make(self.sm, self.game, self.hw)  # To IDLE
+        # To IDLE (Calculates targets)
+        await logic.handle_make(self.sm, self.game, self.hw)
 
         self.assertEqual(self.game.player_1_target, 2)
 
-        # P1 makes 2 balls
+        # 2. P1 makes 2 balls
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
-        await logic.handle_make(self.sm, self.game, self.hw)
+        await logic.handle_make(self.sm, self.game, self.hw)  # Score 1
+        self.assertEqual(self.game.player_1_score, 1)
+
         self.sm.update_state(State_Machine.COUNTDOWN_IN_PROGRESS)
-        await logic.handle_make(self.sm, self.game, self.hw)
+        await logic.handle_make(self.sm, self.game, self.hw)  # Score 2 -> Victory
 
         self.assertEqual(self.game.player_1_score, 2)
-        self.assertTrue(self.sm.victory)
+        self.assertEqual(self.sm.state, State_Machine.VICTORY)
+        self.hw.render_victory.assert_called_with(self.sm, self.game, 1)
 
     async def test_apa_8ball_defensive_win(self):
         self.game.selected_profile = "APA"
@@ -153,6 +167,61 @@ class TestScenarios(unittest.IsolatedAsyncioTestCase):
         await logic.handle_down(self.sm, self.game, self.hw)
         self.assertEqual(self.sm.state, State_Machine.SHOT_CLOCK_IDLE)
         self.assertIsNone(self.game.pending_rack_result)
+
+    # --- Ultimate Pool Scenarios ---
+
+    async def test_ultimate_pool_happy_path(self):
+        # 1. Setup
+        self.sm.update_state(State_Machine.PROFILE_SELECTION)
+        # Full sorted list: APA, BCA, Timeouts Mode, Ultimate Pool, WNT
+        self.game.profile_selection_index = 3  # Ultimate Pool
+        self.game.rules_config = {"Ultimate Pool": {"target": 5, "timeouts": 1}}
+
+        await logic.handle_make(self.sm, self.game, self.hw)
+        self.assertEqual(self.game.selected_profile, "Ultimate Pool")
+        self.assertEqual(self.game.match_countdown, 1800)
+        self.assertEqual(self.game.player_1_target, 5)
+
+        # 2. P1 Win 5 Racks
+        for _ in range(5):
+            self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+            await logic.handle_up(self.sm, self.game, self.hw)  # Win?
+            self.sm.update_state(State_Machine.CONFIRM_RACK_END)
+            await logic.handle_make(self.sm, self.game, self.hw)  # Confirm
+
+        self.assertEqual(self.game.player_1_score, 5)
+        self.assertEqual(self.sm.state, State_Machine.VICTORY)
+
+    async def test_ultimate_pool_match_timer_logic(self):
+        # 1. Setup Ultimate Pool
+        self.sm.update_state(State_Machine.PROFILE_SELECTION)
+        self.game.profile_selection_index = 3
+        self.game.rules_config = {"Ultimate Pool": {"target": 5, "timeouts": 1}}
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        # Initial State: Match Timer NOT Running yet
+        self.assertFalse(self.game.match_timer_running)
+
+        # Start Shot Clock (Start Match Timer)
+        await logic.handle_make(self.sm, self.game, self.hw)
+        self.assertTrue(self.game.match_timer_running)
+
+        # 2. End Rack (Pause)
+        self.sm.update_state(State_Machine.CONFIRM_RACK_END)
+        self.game.pending_rack_result = "win"
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertFalse(self.game.match_timer_running)
+
+        # 3. New Rack (Remains Paused)
+        await logic.handle_new_rack(self.sm, self.game, self.hw)
+        self.assertFalse(self.game.match_timer_running)
+
+        # 4. Start Shot Clock (Resume)
+        self.sm.update_state(State_Machine.SHOT_CLOCK_IDLE)
+        await logic.handle_make(self.sm, self.game, self.hw)
+
+        self.assertTrue(self.game.match_timer_running)
 
     # --- Timeouts Mode Scenarios ---
 

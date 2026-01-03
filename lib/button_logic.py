@@ -309,6 +309,9 @@ async def _handle_make_confirm_rack_end(state_machine, game, hw_module):
     if game.selected_profile in ["APA", "WNT", "BCA", "Ultimate Pool"]:
         game.reset_rack_stats()
 
+    if game.selected_profile == "Ultimate Pool":
+        game.match_timer_running = False
+
     # Clear pending
     game.pending_rack_result = None
 
@@ -371,6 +374,11 @@ async def handle_make(state_machine, game, hw_module):
         ]
         and game.rules
     ):
+        if (
+            state == State_Machine.SHOT_CLOCK_IDLE
+            and game.selected_profile == "Ultimate Pool"
+        ):
+            game.match_timer_running = True
         await game.rules.handle_make(state_machine, game, hw_module)
 
 
@@ -390,7 +398,8 @@ async def handle_new_rack(state_machine, game, hw_module):
     game.rack_counter += 1
 
     # Update menu values for non-APA/WNT/BCA/Ultimate Pool
-    if game.selected_profile not in ["APA", "WNT", "BCA", "Ultimate Pool"]:
+    standard_profiles = ["APA", "WNT", "BCA", "Ultimate Pool"]
+    if game.selected_profile not in standard_profiles:
         game.menu_values[1] = game.rack_counter
         game.break_shot = True
     else:

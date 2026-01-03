@@ -23,6 +23,12 @@ inactivity_check = utime.ticks_ms()
 
 def _update_clock_display(curr_val, new_val):
     """Handles the selective clearing and updating of the countdown digits."""
+    if game.selected_profile == "Ultimate Pool":
+        # Always refresh both timers for Ultimate Pool to keep them in sync.
+        # display.update_timer_display handles optimized clearing/drawing.
+        asyncio.create_task(display.update_timer_display(state_machine, game, OLED))
+        return
+
     if new_val < 0:
         return
 
@@ -48,8 +54,8 @@ def _handle_countdown_tick():
     old_val = game.countdown
     game.countdown -= 1
     new_val = game.countdown
-    # Audio trigger
 
+    # Audio trigger
     if 0 <= new_val < 5 and not game.speaker_muted:
         _thread.start_new_thread(audio.shot_clock_beep, ())
 
@@ -119,13 +125,27 @@ async def timer_worker():
 
     while True:
         now = utime.ticks_ms()
-        # 1. Ticking Countdown
-        if (
-            state_machine.countdown_in_progress
-            and utime.ticks_diff(now, last_tick) > 1000
-        ):
+
+        # 1. Ticking Countdown (Shot Clock) AND/OR Match Timer
+        if utime.ticks_diff(now, last_tick) > 1000:
             last_tick = now
-            _handle_countdown_tick()
+
+            # Match Timer Decrement (Ultimate Pool)
+            is_up = game.selected_profile == "Ultimate Pool"
+            if is_up and game.match_timer_running and game.match_countdown > 0:
+                game.match_countdown -= 1
+                # Refresh display
+                # If shot clock isn't running, we call update_timer_display here.
+                # If it IS running, _handle_countdown_tick -> _update_clock_display
+                # handles it.
+                if not state_machine.countdown_in_progress:
+                    asyncio.create_task(
+                        display.update_timer_display(state_machine, game, OLED)
+                    )
+
+            # Shot Clock Decrement
+            if state_machine.countdown_in_progress:
+                _handle_countdown_tick()
 
         # 2. Expired Flashing
         elif (
@@ -136,12 +156,13 @@ async def timer_worker():
             flash_off = _handle_expired_flash(flash_off)
 
         # 3. UI Blinking
-        if (
+        blink_states = (
             state_machine.profile_selection
             or state_machine.menu
             or state_machine.editing_value
             or state_machine.victory
-        ) and utime.ticks_diff(now, blink_checker) > 500:
+        )
+        if blink_states and utime.ticks_diff(now, blink_checker) > 500:
             blink_checker = now
             blink_off = await _handle_ui_blink(blink_off)
 

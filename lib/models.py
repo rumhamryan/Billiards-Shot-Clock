@@ -105,6 +105,9 @@ class Game_Stats:
         self.pending_rack_result = None  # "win" or "lose" for 8-ball confirmation
         self.profile_based_countdown = 0
         self.countdown = 0
+        self.match_countdown = 1800
+        self.prev_match_countdown = None
+        self.match_timer_running = False
         self.extension_duration = 0
         self.extension_available = True
         self.extension_used = False

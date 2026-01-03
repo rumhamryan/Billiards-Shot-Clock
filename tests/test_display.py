@@ -94,6 +94,75 @@ class TestDisplayUnits(unittest.IsolatedAsyncioTestCase):
         self.oled.text_scaled.assert_any_call("Rack:3", 0, 57, 1)
         self.oled.text_scaled.assert_any_call("Inning:2", 57, 57, 1)
 
+    def test_format_match_timer(self):
+        self.assertEqual(display.format_match_timer(1800), "30:00")
+        self.assertEqual(display.format_match_timer(600), "10:00")
+        self.assertEqual(display.format_match_timer(577), "9:37")
+        self.assertEqual(display.format_match_timer(0), "0:00")
+
+    def test_render_match_timer_optimization(self):
+        self.game.match_countdown = 1799  # 29:59
+        self.game.prev_match_countdown = 1800  # 30:00
+
+        # Should clear and redraw all 4 digits
+        display.render_match_timer(self.oled, self.sm, self.game)
+        self.assertEqual(self.oled.rect.call_count, 4)
+
+        self.oled.reset_mock()
+        self.game.prev_match_countdown = 1799
+        self.game.match_countdown = 1798  # 29:58
+        # Only last digit changes
+        display.render_match_timer(self.oled, self.sm, self.game)
+        self.assertEqual(self.oled.rect.call_count, 1)
+        self.oled.text_scaled.assert_called_once_with("8", 77, 57, 1)
+
+    def test_render_match_timer_leading_zero_suppression(self):
+        self.game.match_countdown = 540  # 09:00
+        self.game.prev_match_countdown = None  # Force all
+
+        display.render_match_timer(self.oled, self.sm, self.game, force_all=True)
+        # Should NOT call text_scaled for digit 1 (index 0) at x=39
+        # call_args_list contains all calls. Check if any call has x=39
+        x_positions = [call.args[1] for call in self.oled.text_scaled.call_args_list]
+        self.assertNotIn(39, x_positions)
+        # Should call for others (shifted positions)
+        self.assertIn(48, x_positions)  # 9
+        self.assertIn(56, x_positions)  # :
+        self.assertIn(64, x_positions)  # 0
+        self.assertIn(72, x_positions)  # 0
+
+    async def test_render_profile_selection_ultimate_pool(self):
+        self.game.profile_selection_index = 3  # Assuming Ultimate Pool index
+        self.game.profile_names = ["APA", "BCA", "Timeouts Mode", "Ultimate Pool", "WNT"]
+        await display.render_profile_selection(self.sm, self.game, self.oled)
+        self.oled.text_scaled.assert_any_call("Ultimate", 0, 30, 2)
+        self.oled.text_scaled.assert_any_call("Pool", 30, 48, 2)
+
+    async def test_render_wnt_target_selection(self):
+        self.game.temp_setting_value = 11
+        await display.render_wnt_target_selection(self.sm, self.game, self.oled)
+        # Verify shift logic: target > 9 -> shift = 12. 50 - 12 = 38
+        self.oled.text_scaled.assert_any_call("11", 38, 30, 3)
+
+    def test_render_match_timer_clears_digit_1_below_10_mins(self):
+        # 1. Start at 10:00 (Digit 1 is '1')
+        self.game.match_countdown = 600
+        self.game.prev_match_countdown = 601
+        display.render_match_timer(self.oled, self.sm, self.game)
+
+        # 2. Transition to 09:59
+        self.oled.reset_mock()
+        self.game.match_countdown = 599  # 09:59
+        display.render_match_timer(self.oled, self.sm, self.game)
+
+        # Verify full area was cleared on threshold crossing
+        # DISPLAY_REGIONS["match_clock_full"] is (39, 57, 46, 8)
+        self.oled.rect.assert_any_call(39, 57, 46, 8, self.oled.black, True)
+
+        # Verify NO digit was drawn at x=39 (leading zero suppression)
+        x_positions = [call.args[1] for call in self.oled.text_scaled.call_args_list]
+        self.assertNotIn(39, x_positions)
+
 
 if __name__ == "__main__":
     unittest.main()

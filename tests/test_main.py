@@ -30,8 +30,8 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         main.display.display_clear = MagicMock()
         main.display.process_timer_duration = MagicMock(return_value="10")
 
-        # Async methods need AsyncMock
-        # We set return_value to an awaited coroutine to silence warning
+        # Async methods need AsyncMock or MagicMock(side_effect=coro)
+        # Using side_effect with an async function silences "never awaited" warnings.
         async def mock_coro(*args, **kwargs):
             return None
 
@@ -40,6 +40,7 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         main.display.update_timer_display = MagicMock(side_effect=mock_coro)
         main.display.render_profile_selection = MagicMock(side_effect=mock_coro)
         main.display.render_menu = MagicMock(side_effect=mock_coro)
+        main.display.render_victory = MagicMock(side_effect=mock_coro)
 
     async def test_timer_worker_countdown(self):
         # Setup state
@@ -61,6 +62,31 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(main.game.countdown, 9)
         # Check display update
         main.display.display_text.assert_called()  # type: ignore
+
+    async def test_timer_worker_ultimate_pool_match_timer(self):
+        # Setup state: Match timer running but SHOT CLOCK IDLE
+        main.state_machine.update_state(main.State_Machine.SHOT_CLOCK_IDLE)
+        main.game.selected_profile = "Ultimate Pool"
+        main.game.match_countdown = 1800
+        main.game.match_timer_running = True
+        main.game.countdown = 30
+
+        import contextlib
+
+        # Patch the asyncio that main uses
+        # Ensure enough ticks_ms side effects
+        ticks = [0, 1500, 1500, 1500, 1500, 1500, 1500, 1500]
+        with (
+            patch("main.asyncio.sleep_ms", side_effect=asyncio.CancelledError),
+            patch("main.utime.ticks_ms", side_effect=ticks),
+            patch("main.utime.ticks_diff", side_effect=lambda a, b: a - b),
+            contextlib.suppress(asyncio.CancelledError),
+        ):
+            await main.timer_worker()
+
+        # Match timer should decrement
+        self.assertLess(main.game.match_countdown, 1800)
+        main.display.update_timer_display.assert_called()  # type: ignore
 
     async def test_timer_worker_flash(self):
         main.state_machine.update_state(main.State_Machine.COUNTDOWN_COMPLETE)

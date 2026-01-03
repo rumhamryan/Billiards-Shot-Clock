@@ -72,6 +72,69 @@ def process_timer_duration(duration):
     return f"{duration:02d}"
 
 
+def format_match_timer(seconds):
+    """Formats seconds into MM:SS."""
+    m, s = divmod(seconds, 60)
+    return f"{m}:{s:02d}"
+
+
+def render_match_timer(oled, state_machine, game, force_all=False, send_payload=True):
+    """Renders the match timer digits individually for efficiency."""
+    new_val = game.match_countdown
+    old_val = game.prev_match_countdown
+
+    new_shifted = new_val < 600
+    old_shifted = (old_val is not None) and (old_val < 600)
+
+    # Force a full redraw if we crossed the 10-minute threshold or it's first render
+    if (old_val is None) or (new_shifted != old_shifted):
+        force_all = True
+
+    m_new, s_new = divmod(new_val, 60)
+    m_old, s_old = divmod(old_val, 60) if old_val is not None else (-1, -1)
+
+    # Individual digits
+    d1_new, d2_new = divmod(m_new, 10)
+    d3_new, d4_new = divmod(s_new, 10)
+
+    d1_old, d2_old = divmod(m_old, 10) if old_val is not None else (-1, -1)
+    d3_old, d4_old = divmod(s_old, 10) if old_val is not None else (-1, -1)
+
+    new_digits = [d1_new, d2_new, d3_new, d4_new]
+    old_digits = [d1_old, d2_old, d3_old, d4_old]
+
+    if new_shifted:
+        x_positions = [39, 48, 64, 72]
+        colon_x = 56
+        suffix = "_s"
+    else:
+        x_positions = [44, 53, 69, 77]
+        colon_x = 61
+        suffix = ""
+
+    if force_all:
+        display_clear(oled, "match_clock_full", send_payload=False)
+        display_text(oled, state_machine, ":", colon_x, 57, 1, False)
+
+    for i in range(4):
+        if force_all or (new_digits[i] != old_digits[i]):
+            if not force_all:
+                region = f"match_clock_digit_{i+1}{suffix}"
+                display_clear(oled, region, send_payload=False)
+
+            # Digit 1 is suppressed if 0 in shifted mode
+            if i == 0 and d1_new == 0 and new_shifted:
+                pass
+            else:
+                display_text(
+                    oled, state_machine, str(new_digits[i]), x_positions[i], 57, 1, False
+                )
+
+    game.prev_match_countdown = new_val
+    if send_payload:
+        oled.show()
+
+
 # High Level Logic Rendering
 
 
@@ -97,16 +160,17 @@ def render_scoreline(oled, state_machine, game, send_payload=True):
         display_text(oled, state_machine, "/", 104, 57, 1, False)
         display_text(oled, state_machine, f"{target_2}", 112, 57, 1, False)
 
-        # Draw the current shooter indicator
-        if game.inning_counter % 1 == 0:
-            display_shape(oled, "rect", 57, 57, 7, 7, True, False)
-            display_shape(oled, "rect", 66, 57, 7, 7, False, False)
-        else:
-            display_shape(oled, "rect", 57, 57, 7, 7, False, False)
-            display_shape(oled, "rect", 66, 57, 7, 7, True, False)
+        if game.selected_profile != "Ultimate Pool":
+            # Draw the current shooter indicator
+            if game.inning_counter % 1 == 0:
+                display_shape(oled, "rect", 57, 57, 7, 7, True, False)
+                display_shape(oled, "rect", 66, 57, 7, 7, False, False)
+            else:
+                display_shape(oled, "rect", 57, 57, 7, 7, False, False)
+                display_shape(oled, "rect", 66, 57, 7, 7, True, False)
 
-        # Draw timeouts indicators
-        display_timeouts(oled, state_machine, game, False)
+            # Draw timeouts indicators
+            display_timeouts(oled, state_machine, game, False)
     else:
         racks, innings = game.rack_counter, int(game.inning_counter)
         display_text(oled, state_machine, f"Rack:{racks}", 0, 57, 1, False)
@@ -128,13 +192,22 @@ async def enter_idle_mode(state_machine, game, oled):
     else:
         game.speaker_5_count = 4
 
-    render_scoreline(oled, state_machine, game, True)
+    render_scoreline(oled, state_machine, game, False)
 
     if game.break_shot:
         game.countdown = game.profile_based_countdown + game.extension_duration
     else:
         game.countdown = game.profile_based_countdown
-    display_text(oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8)
+
+    if game.selected_profile == "Ultimate Pool":
+        # Full render of match timer
+        render_match_timer(oled, state_machine, game, force_all=True, send_payload=False)
+        # Render Shot Clock (Standard size/pos)
+        display_text(
+            oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8, True
+        )
+    else:
+        display_text(oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8)
 
 
 async def enter_shot_clock(state_machine, game, oled):
@@ -142,8 +215,17 @@ async def enter_shot_clock(state_machine, game, oled):
 
 
 async def update_timer_display(state_machine, game, oled):
-    display_clear(oled, "shot_clock_digit_1", "shot_clock_digit_2")
-    display_text(oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8)
+    if game.selected_profile == "Ultimate Pool":
+        # Clear only shot clock area
+        display_clear(oled, "shot_clock_full", send_payload=False)
+        display_text(
+            oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8, False
+        )
+        # Efficiently update match timer digits
+        render_match_timer(oled, state_machine, game, force_all=False, send_payload=True)
+    else:
+        display_clear(oled, "shot_clock_digit_1", "shot_clock_digit_2")
+        display_text(oled, state_machine, process_timer_duration(game.countdown), 0, 0, 8)
 
 
 async def render_profile_selection(state_machine, game, oled, clear_all=False):
