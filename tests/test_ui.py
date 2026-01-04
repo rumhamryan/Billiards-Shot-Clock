@@ -258,6 +258,29 @@ class TestDisplayUnits(unittest.IsolatedAsyncioTestCase):
         x_positions = [call.args[1] for call in self.oled.text_scaled.call_args_list]
         self.assertNotIn(43, x_positions)
 
+    async def test_ultimate_pool_menu_exit_timer_redraw(self):
+        """Regression test for bug where exiting menu didn't redraw match timer."""
+        from unittest.mock import patch
+
+        self.game.selected_profile = "Ultimate Pool"
+        self.sm.update_state(State_Machine.MENU)
+
+        # Mock render_ultimate_pool_shooter_indicators where it is DEFINED,
+        # so that when ui_gameplay calls render_scoreline (from components),
+        # it uses our mock.
+        with patch(
+            "lib.ui_components.render_ultimate_pool_shooter_indicators"
+        ) as mock_render:
+            await ui.enter_idle_mode(self.sm, self.game, self.oled)
+
+            # verify that state changed
+            self.assertEqual(self.sm.state, State_Machine.SHOT_CLOCK_IDLE)
+
+            # Verify render_ultimate_pool_shooter_indicators was called
+            # with force_match_timer=True It's called inside
+            # render_scoreline which is called by enter_idle_mode.
+            mock_render.assert_called_with(self.oled, self.sm, self.game, True)
+
 
 if __name__ == "__main__":
     unittest.main()

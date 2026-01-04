@@ -42,7 +42,9 @@ async def enter_idle_mode(state_machine, game, oled):
     else:
         game.speaker_5_count = 4
 
-    render_scoreline(oled, state_machine, game, False)
+    render_scoreline(
+        oled, state_machine, game, send_payload=False, force_match_timer=True
+    )
 
     if game.break_shot:
         game.countdown = game.profile_based_countdown + game.extension_duration
