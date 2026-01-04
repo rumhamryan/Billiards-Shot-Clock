@@ -136,13 +136,18 @@ def render_scoreline(
     elif game.selected_profile in ["APA", "WNT", "BCA", "Ultimate Pool"]:
         if not suppress_scores:
             prefix = "up_" if game.selected_profile == "Ultimate Pool" else ""
+            p1_x_offset = 1 if (game.player_1_score > 9 and prefix == "") else 0
+            alignment = "left" if (prefix == "" and game.player_1_score < 10) else "right"
+            shift = 6 if (prefix == "" and alignment == "left") else 0
+
             # Draw player_1 score/target_score
             display.draw_text_in_region(
                 oled,
                 f"{prefix}p1_score",
                 str(game.player_1_score),
-                align="right",
+                align=alignment,
                 send_payload=False,
+                x_offset=p1_x_offset,
             )
             display.draw_text_in_region(
                 oled,
@@ -150,6 +155,7 @@ def render_scoreline(
                 "/",
                 align="center",
                 send_payload=False,
+                x_offset=p1_x_offset - shift,
             )
             display.draw_text_in_region(
                 oled,
@@ -157,6 +163,7 @@ def render_scoreline(
                 str(game.player_1_target),
                 align="left",
                 send_payload=False,
+                x_offset=p1_x_offset - shift,
             )
 
             # Draw player_2 score/target_score

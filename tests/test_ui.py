@@ -24,19 +24,19 @@ class TestDisplayUnits(unittest.IsolatedAsyncioTestCase):
 
         ui.render_scoreline(self.oled, self.sm, self.game, send_payload=True)
 
-        # Standard P1 score 10 (region 0, 14). Right align -> 14-16 = -2.
-        self.oled.text_scaled.assert_any_call("10", -2, 56, 1)
-        # Standard P1 sep (region 14, 8). Center align -> 14 + (8-8)//2 = 14.
-        self.oled.text_scaled.assert_any_call("/", 14, 56, 1)
-        # Standard P1 target 38 (region 22, 14). Left align -> 22.
-        self.oled.text_scaled.assert_any_call("38", 22, 56, 1)
+        # Standard P1 score 10 (region 0, 14). Right align -> 1 + 14 - 16 = -1.
+        self.oled.text_scaled.assert_any_call("10", -1, 56, 1)
+        # Standard P1 sep (region 14, 8). Center align -> 15 + (8-8)//2 = 15.
+        self.oled.text_scaled.assert_any_call("/", 15, 56, 1)
+        # Standard P1 target 38 (region 22, 14). Left align -> 23.
+        self.oled.text_scaled.assert_any_call("38", 23, 56, 1)
 
-        # Standard P2 score 5 (region 96, 14). Right align -> 96 + 14 - 8 = 102.
-        self.oled.text_scaled.assert_any_call("5", 102, 56, 1)
-        # Standard P2 sep (region 110, 8). Center -> 110.
-        self.oled.text_scaled.assert_any_call("/", 110, 56, 1)
-        # Standard P2 target 14 (region 118, 10). Left align -> 118.
-        self.oled.text_scaled.assert_any_call("14", 118, 56, 1)
+        # Standard P2 score 5 (region 91, 14). Right align -> 91 + 14 - 8 = 97.
+        self.oled.text_scaled.assert_any_call("5", 97, 56, 1)
+        # Standard P2 sep (region 105, 8). Center -> 105.
+        self.oled.text_scaled.assert_any_call("/", 105, 56, 1)
+        # Standard P2 target 14 (region 113, 14). Left align -> 113.
+        self.oled.text_scaled.assert_any_call("14", 113, 56, 1)
 
     def test_render_scoreline_ultimate_pool_alignment(self):
         self.game.selected_profile = "Ultimate Pool"
@@ -63,17 +63,26 @@ class TestDisplayUnits(unittest.IsolatedAsyncioTestCase):
 
     def test_render_scoreline_p2_single_digit_target_shift(self):
         self.game.selected_profile = "APA"
+        self.game.player_1_score = 0
+        self.game.player_1_target = 0
         self.game.player_2_score = 10
         self.game.player_2_target = 5  # Single digit
 
         ui.render_scoreline(self.oled, self.sm, self.game)
 
-        # P2 score 10 (region 96, 14). Right align -> 96 + 14 - 16 = 94.
-        self.oled.text_scaled.assert_any_call("10", 94, 56, 1)
-        # P2 sep (110).
-        self.oled.text_scaled.assert_any_call("/", 110, 56, 1)
-        # P2 target 5 (region 118, 10). Left align -> 118.
-        self.oled.text_scaled.assert_any_call("5", 118, 56, 1)
+        # P1 score 0 (region 0, 14). Left align -> 0.
+        self.oled.text_scaled.assert_any_call("0", 0, 56, 1)
+        # P1 sep (14). shift=6. x = 14-6 = 8.
+        self.oled.text_scaled.assert_any_call("/", 8, 56, 1)
+        # P1 target 0 (22). shift=6. x = 22-6 = 16.
+        self.oled.text_scaled.assert_any_call("0", 16, 56, 1)
+
+        # P2 score 10 (region 91, 14). Right align -> 91 + 14 - 16 = 89.
+        self.oled.text_scaled.assert_any_call("10", 89, 56, 1)
+        # P2 sep (105).
+        self.oled.text_scaled.assert_any_call("/", 105, 56, 1)
+        # P2 target 5 (region 113, 14). Left align -> 113.
+        self.oled.text_scaled.assert_any_call("5", 113, 56, 1)
 
     def test_render_scoreline_ultimate_pool_indicators(self):
         self.game.selected_profile = "Ultimate Pool"
@@ -127,18 +136,18 @@ class TestDisplayUnits(unittest.IsolatedAsyncioTestCase):
         # P1 region starts at 40.
         self.oled.rect.assert_any_call(40, 58, 4, 4, self.oled.white, True)
         self.oled.rect.assert_any_call(48, 58, 4, 4, self.oled.white, True)
-        # P2 region starts at 77.
-        self.oled.rect.assert_any_call(77, 58, 4, 4, self.oled.white, True)
-        self.oled.rect.assert_any_call(85, 58, 4, 4, self.oled.white, True)
+        # P2 region starts at 76.
+        self.oled.rect.assert_any_call(76, 58, 4, 4, self.oled.white, True)
+        self.oled.rect.assert_any_call(84, 58, 4, 4, self.oled.white, True)
 
         self.oled.reset_mock()
         # 1 timeout
         self.game.player_1_timeouts_remaining = 1
         self.game.player_2_timeouts_remaining = 1
         ui.display_timeouts(self.oled, self.sm, self.game)
-        # P1: 40+4 = 44. P2: 77+4 = 81.
+        # P1: 40+4 = 44. P2: 76+4 = 80.
         self.oled.rect.assert_any_call(44, 58, 4, 4, self.oled.white, True)
-        self.oled.rect.assert_any_call(81, 58, 4, 4, self.oled.white, True)
+        self.oled.rect.assert_any_call(80, 58, 4, 4, self.oled.white, True)
 
     async def test_render_message_centering(self):
         message = "Test\nMessage"

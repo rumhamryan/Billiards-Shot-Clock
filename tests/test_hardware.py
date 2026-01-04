@@ -54,10 +54,10 @@ class TestDisplay(unittest.IsolatedAsyncioTestCase):
 
         await ui.enter_idle_mode(self.sm, self.game, self.oled)
 
-        # p1_score (0, 56, 14, 8). Right. x = 6.
-        self.oled.text_scaled.assert_any_call("0", 6, 56, 1)
-        # p2_score (96, 56, 14, 8). Right. x = 102.
-        self.oled.text_scaled.assert_any_call("0", 102, 56, 1)
+        # p1_score (0, 56, 14, 8). Left. x = 0.
+        self.oled.text_scaled.assert_any_call("0", 0, 56, 1)
+        # p2_score (91, 56, 14, 8). Right. x = 97.
+        self.oled.text_scaled.assert_any_call("0", 97, 56, 1)
 
     async def test_enter_idle_mode_double_digit_shift(self):
         self.game.selected_profile = "APA"
@@ -66,8 +66,10 @@ class TestDisplay(unittest.IsolatedAsyncioTestCase):
 
         await ui.enter_idle_mode(self.sm, self.game, self.oled)
 
-        self.oled.text_scaled.assert_any_call("5", 6, 56, 1)
-        self.oled.text_scaled.assert_any_call("10", 94, 56, 1)
+        # p1_score (0, 56, 14, 8). Left align -> 0.
+        self.oled.text_scaled.assert_any_call("5", 0, 56, 1)
+        # p2_score (91, 56, 14, 8). Right align -> 89.
+        self.oled.text_scaled.assert_any_call("10", 89, 56, 1)
 
     async def test_enter_idle_mode_game_no_break(self):
         self.game.timeouts_only = False

@@ -9,13 +9,21 @@ def get_region(key):
 
 
 def draw_text_in_region(
-    oled, region_key, text, font_size=1, align="center", send_payload=False, clear=True
+    oled,
+    region_key,
+    text,
+    font_size=1,
+    align="center",
+    send_payload=False,
+    clear=True,
+    x_offset=0,
 ):
     """
     Draws text aligned within a specific region.
     align: "center", "left", "right"
     """
     x, y, w, h = get_region(region_key)
+    x += x_offset
 
     if clear:
         oled.rect(x, y, w, h, oled.black, True)
@@ -42,9 +50,12 @@ def draw_text_in_region(
         oled.show()
 
 
-def draw_rect_in_region(oled, region_key, fill=True, send_payload=False, clear=True):
+def draw_rect_in_region(
+    oled, region_key, fill=True, send_payload=False, clear=True, x_offset=0
+):
     """Draws a rectangle in the specified region."""
     x, y, w, h = get_region(region_key)
+    x += x_offset
 
     if clear:
         oled.rect(x, y, w, h, oled.black, True)
