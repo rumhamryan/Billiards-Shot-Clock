@@ -73,7 +73,7 @@ def render_match_timer(oled, state_machine, game, force_all=False, send_payload=
             continue
 
         if force_all or (new_digits[i] != old_digits[i]):
-            region_key = f"match_clock_digit_{i+1}{suffix}"
+            region_key = f"match_clock_digit_{i + 1}{suffix}"
 
             display.draw_text_in_region(
                 oled, region_key, str(new_digits[i]), align="center", send_payload=False
