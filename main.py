@@ -6,7 +6,7 @@ import utime
 import lib.button_logic as logic
 
 # Internal Library Imports
-from lib import Pico_OLED_242, audio, display
+from lib import Pico_OLED_242, audio, display, ui
 from lib.button_interrupt import AsyncButton
 from lib.hardware_config import DOWN_PIN, MAKE_PIN, MISS_PIN, UP_PIN
 from lib.models import Game_Stats, State_Machine
@@ -26,7 +26,7 @@ def _update_clock_display(curr_val, new_val):
     if game.selected_profile == "Ultimate Pool":
         # Always refresh both timers for Ultimate Pool to keep them in sync.
         # display.update_timer_display handles optimized clearing/drawing.
-        asyncio.create_task(display.update_timer_display(state_machine, game, OLED))
+        asyncio.create_task(ui.update_timer_display(state_machine, game, OLED))
         return
 
     if new_val < 0:
@@ -35,16 +35,41 @@ def _update_clock_display(curr_val, new_val):
     curr_tens, curr_units = curr_val // 10, curr_val % 10
     new_tens, new_units = new_val // 10, new_val % 10
     if curr_tens != new_tens and curr_units != new_units:
-        display.display_clear(OLED, "shot_clock_digit_1", "shot_clock_digit_2")
-        display.display_text(
-            OLED, state_machine, display.process_timer_duration(new_val), 0, 0, 8
+        timer_str = display.process_timer_duration(new_val)
+        display.draw_text_in_region(
+            OLED,
+            "shot_clock_digit_1",
+            timer_str[0],
+            font_size=8,
+            align="center",
+            send_payload=False,
+        )
+        display.draw_text_in_region(
+            OLED,
+            "shot_clock_digit_2",
+            timer_str[1],
+            font_size=8,
+            align="center",
+            send_payload=True,
         )
     elif curr_tens != new_tens:
-        display.display_clear(OLED, "shot_clock_digit_1")
-        display.display_text(OLED, state_machine, str(new_tens), 0, 0, 8)
+        display.draw_text_in_region(
+            OLED,
+            "shot_clock_digit_1",
+            str(new_tens),
+            font_size=8,
+            align="center",
+            send_payload=True,
+        )
     elif curr_units != new_units:
-        display.display_clear(OLED, "shot_clock_digit_2")
-        display.display_text(OLED, state_machine, str(new_units), 60, 0, 8)
+        display.draw_text_in_region(
+            OLED,
+            "shot_clock_digit_2",
+            str(new_units),
+            font_size=8,
+            align="center",
+            send_payload=True,
+        )
 
 
 def _handle_countdown_tick():
@@ -70,8 +95,22 @@ def _handle_countdown_tick():
 def _handle_expired_flash(flash_off):
     """Toggle the '00' display when time has expired."""
     if flash_off:
-        display.display_text(
-            OLED, state_machine, display.process_timer_duration(game.countdown), 0, 0, 8
+        timer_str = display.process_timer_duration(game.countdown)
+        display.draw_text_in_region(
+            OLED,
+            "shot_clock_digit_1",
+            timer_str[0],
+            font_size=8,
+            align="center",
+            send_payload=False,
+        )
+        display.draw_text_in_region(
+            OLED,
+            "shot_clock_digit_2",
+            timer_str[1],
+            font_size=8,
+            align="center",
+            send_payload=True,
         )
     else:
         display.display_clear(OLED, "shot_clock_digit_1", "shot_clock_digit_2")
@@ -88,14 +127,14 @@ async def _handle_ui_blink(blink_off):
             display.display_clear(OLED, "profile_selection")
 
         else:
-            await display.render_profile_selection(state_machine, game, OLED)
+            await ui.render_profile_selection(state_machine, game, OLED)
 
     elif state_machine.menu or state_machine.editing_value:
         if blink_off:
             display.display_clear(OLED, "menu_selector")
 
         else:
-            display.display_shape(OLED, "rect", 8, 40, 8, 8, True)
+            display.draw_rect_in_region(OLED, "menu_cursor", fill=True)
 
     elif state_machine.victory:
         if blink_off:
@@ -107,7 +146,7 @@ async def _handle_ui_blink(blink_off):
             # Actually, render_victory is async, we can call it if we store winner.
             # Let's just store the winner in Game_Stats for blinking.
             winner = 1 if game.player_1_score >= game.player_1_target else 2
-            await display.render_victory(state_machine, game, OLED, winner)
+            await ui.render_victory(state_machine, game, OLED, winner)
 
     return not blink_off
 
@@ -147,7 +186,7 @@ async def timer_worker():
                 # handles it.
                 if not state_machine.countdown_in_progress:
                     asyncio.create_task(
-                        display.update_timer_display(state_machine, game, OLED)
+                        ui.update_timer_display(state_machine, game, OLED)
                     )
 
             # Shot Clock Decrement
@@ -218,37 +257,37 @@ class HardwareWrapper:
         self.oled = oled
 
     async def enter_idle_mode(self, sm, g):
-        await display.enter_idle_mode(sm, g, self.oled)
+        await ui.enter_idle_mode(sm, g, self.oled)
 
     async def enter_shot_clock(self, sm, g):
-        await display.enter_shot_clock(sm, g, self.oled)
+        await ui.enter_shot_clock(sm, g, self.oled)
 
     async def update_timer_display(self, sm, g):
-        await display.update_timer_display(sm, g, self.oled)
+        await ui.update_timer_display(sm, g, self.oled)
 
     async def render_profile_selection(self, sm, g, clear_all=False):
-        await display.render_profile_selection(sm, g, self.oled, clear_all=clear_all)
+        await ui.render_profile_selection(sm, g, self.oled, clear_all=clear_all)
 
     async def render_menu(self, sm, g):
-        await display.render_menu(sm, g, self.oled)
+        await ui.render_menu(sm, g, self.oled)
 
     async def render_exit_confirmation(self, sm, g):
-        await display.render_exit_confirmation(sm, g, self.oled)
+        await ui.render_exit_confirmation(sm, g, self.oled)
 
     async def render_skill_level_selection(self, sm, g, player_num):
-        await display.render_skill_level_selection(sm, g, self.oled, player_num)
+        await ui.render_skill_level_selection(sm, g, self.oled, player_num)
 
     async def render_game_type_selection(self, sm, g):
-        await display.render_game_type_selection(sm, g, self.oled)
+        await ui.render_game_type_selection(sm, g, self.oled)
 
     async def render_wnt_target_selection(self, sm, g):
-        await display.render_wnt_target_selection(sm, g, self.oled)
+        await ui.render_wnt_target_selection(sm, g, self.oled)
 
     async def render_victory(self, sm, g, winner_num):
-        await display.render_victory(sm, g, self.oled, winner_num)
+        await ui.render_victory(sm, g, self.oled, winner_num)
 
     async def render_message(self, sm, g, message, font_size=1):
-        await display.render_message(sm, g, self.oled, message, font_size)
+        await ui.render_message(sm, g, self.oled, message, font_size)
 
 
 hw_wrapper = HardwareWrapper(OLED)
@@ -267,7 +306,7 @@ async def main():
 
     # 3. Initial Display
     state_machine.update_state(State_Machine.PROFILE_SELECTION)
-    await display.render_profile_selection(state_machine, game, OLED)
+    await ui.render_profile_selection(state_machine, game, OLED)
 
     # 4. The Infinite Wait
     while True:

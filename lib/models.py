@@ -22,9 +22,11 @@ class State_Machine:
     def _set_defaults(self, initial_state=PROFILE_SELECTION):
         """Sets the default values for the state machine."""
         self.state = initial_state
+        self.previous_state = None
         self.game_on = False
 
     def update_state(self, new_state):
+        self.previous_state = self.state
         self.state = new_state
 
     @property

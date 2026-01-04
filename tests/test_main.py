@@ -26,7 +26,9 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         # Mock dependencies
         main.audio = MagicMock()
         main.display = MagicMock()
-        main.display.display_text = MagicMock()
+        main.ui = MagicMock()  # Mock UI module
+
+        main.display.draw_text_in_region = MagicMock()
         main.display.display_clear = MagicMock()
         main.display.process_timer_duration = MagicMock(return_value="10")
 
@@ -35,12 +37,18 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         async def mock_coro(*args, **kwargs):
             return None
 
-        main.display.enter_idle_mode = MagicMock(side_effect=mock_coro)
-        main.display.enter_shot_clock = MagicMock(side_effect=mock_coro)
-        main.display.update_timer_display = MagicMock(side_effect=mock_coro)
-        main.display.render_profile_selection = MagicMock(side_effect=mock_coro)
-        main.display.render_menu = MagicMock(side_effect=mock_coro)
-        main.display.render_victory = MagicMock(side_effect=mock_coro)
+        # UI Mocks
+        main.ui.enter_idle_mode = MagicMock(side_effect=mock_coro)
+        main.ui.enter_shot_clock = MagicMock(side_effect=mock_coro)
+        main.ui.update_timer_display = MagicMock(side_effect=mock_coro)
+        main.ui.render_profile_selection = MagicMock(side_effect=mock_coro)
+        main.ui.render_menu = MagicMock(side_effect=mock_coro)
+        main.ui.render_victory = MagicMock(side_effect=mock_coro)
+        main.ui.render_exit_confirmation = MagicMock(side_effect=mock_coro)
+        main.ui.render_skill_level_selection = MagicMock(side_effect=mock_coro)
+        main.ui.render_game_type_selection = MagicMock(side_effect=mock_coro)
+        main.ui.render_wnt_target_selection = MagicMock(side_effect=mock_coro)
+        main.ui.render_message = MagicMock(side_effect=mock_coro)
 
     async def test_timer_worker_countdown(self):
         # Setup state
@@ -61,7 +69,7 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         # Check if countdown decreased (1500 - 0 > 1000, so yes)
         self.assertEqual(main.game.countdown, 9)
         # Check display update
-        main.display.display_text.assert_called()  # type: ignore
+        main.display.draw_text_in_region.assert_called()  # type: ignore
 
     async def test_timer_worker_ultimate_pool_match_timer(self):
         # Setup state: Match timer running but SHOT CLOCK IDLE
@@ -86,7 +94,7 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
 
         # Match timer should decrement
         self.assertLess(main.game.match_countdown, 1800)
-        main.display.update_timer_display.assert_called()  # type: ignore
+        main.ui.update_timer_display.assert_called()  # type: ignore
 
     async def test_timer_worker_flash(self):
         main.state_machine.update_state(main.State_Machine.COUNTDOWN_COMPLETE)
@@ -103,7 +111,7 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
             await main.timer_worker()
 
         self.assertTrue(
-            main.display.display_text.called or main.display.display_clear.called  # type: ignore
+            main.display.draw_text_in_region.called or main.display.display_clear.called  # type: ignore
         )
 
     async def test_timer_worker_blink(self):
@@ -122,7 +130,7 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         # Should call display logic
         self.assertTrue(
             main.display.display_clear.called  # type: ignore
-            or main.display.render_profile_selection.called  # type: ignore
+            or main.ui.render_profile_selection.called  # type: ignore
         )
 
     async def test_main_function(self):
@@ -136,7 +144,7 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         ):
             await main.main()
 
-        main.display.render_profile_selection.assert_called_once()  # type: ignore
+        main.ui.render_profile_selection.assert_called_once()  # type: ignore
         mock_task.assert_called_once()
         mock_worker.assert_called_once()
 
@@ -192,21 +200,21 @@ class TestMain(unittest.IsolatedAsyncioTestCase):
         sm = main.state_machine
         g = main.game
 
-        # Test each wrapper method calls the display module
+        # Test each wrapper method calls the UI module
         await wrapper.enter_idle_mode(sm, g)
-        main.display.enter_idle_mode.assert_called_once()  # type: ignore
+        main.ui.enter_idle_mode.assert_called_once()  # type: ignore
 
         await wrapper.enter_shot_clock(sm, g)
-        main.display.enter_shot_clock.assert_called_once()  # type: ignore
+        main.ui.enter_shot_clock.assert_called_once()  # type: ignore
 
         await wrapper.update_timer_display(sm, g)
-        main.display.update_timer_display.assert_called_once()  # type: ignore
+        main.ui.update_timer_display.assert_called_once()  # type: ignore
 
         await wrapper.render_profile_selection(sm, g)
-        main.display.render_profile_selection.assert_called_once()  # type: ignore
+        main.ui.render_profile_selection.assert_called_once()  # type: ignore
 
         await wrapper.render_menu(sm, g)
-        main.display.render_menu.assert_called_once()  # type: ignore
+        main.ui.render_menu.assert_called_once()  # type: ignore
 
 
 if __name__ == "__main__":
