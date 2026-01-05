@@ -13,6 +13,7 @@ async def enter_idle_mode(state_machine, game, oled):
         if prev_state in [
             State_Machine.APA_GAME_TYPE_SELECTION,
             State_Machine.PROFILE_SELECTION,
+            State_Machine.MENU,
         ]:
             display.display_clear(oled, "everything")
         else:

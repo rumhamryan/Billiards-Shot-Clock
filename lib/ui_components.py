@@ -140,8 +140,17 @@ def render_scoreline(
         if not suppress_scores:
             prefix = "up_" if game.selected_profile == "Ultimate Pool" else ""
             p1_x_offset = 1 if (game.player_1_score > 9 and prefix == "") else 0
-            alignment = "left" if (prefix == "" and game.player_1_score < 10) else "right"
+
+            # Alignment Logic
+            is_apa_8ball = (
+                game.selected_profile == "APA"
+                and getattr(game, "match_type", "") == "8-Ball"
+            )
+
+            alignment = "left" if prefix == "" and game.player_1_score < 10 else "right"
+
             shift = 6 if (prefix == "" and alignment == "left") else 0
+            p2_x_offset = 8 if is_apa_8ball else 0
 
             # Draw player_1 score/target_score
             display.draw_text_in_region(
@@ -178,19 +187,25 @@ def render_scoreline(
                 oled,
                 f"{prefix}p2_score",
                 str(game.player_2_score),
-                display.TextOptions(align="right", send_payload=False),
+                display.TextOptions(
+                    align="right", send_payload=False, x_offset=p2_x_offset
+                ),
             )
             display.draw_text_in_region(
                 oled,
                 f"{prefix}p2_separator",
                 "/",
-                display.TextOptions(align="center", send_payload=False),
+                display.TextOptions(
+                    align="center", send_payload=False, x_offset=p2_x_offset
+                ),
             )
             display.draw_text_in_region(
                 oled,
                 f"{prefix}p2_target",
                 str(game.player_2_target),
-                display.TextOptions(align="left", send_payload=False),
+                display.TextOptions(
+                    align="left", send_payload=False, x_offset=p2_x_offset
+                ),
             )
 
         if game.selected_profile == "Ultimate Pool":
