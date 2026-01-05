@@ -11,6 +11,8 @@ from lib.ui_screens import (
     render_menu,
     render_message,
     render_profile_selection,
+    render_shootout_announcement,
+    render_shootout_stopwatch,
     render_skill_level_selection,
     render_victory,
     render_wnt_target_selection,
@@ -29,7 +31,9 @@ __all__ = [
     "render_menu",
     "render_message",
     "render_profile_selection",
+    "render_shootout_announcement",
     "render_skill_level_selection",
+    "render_shootout_stopwatch",
     "render_victory",
     "render_wnt_target_selection",
 ]

@@ -140,13 +140,17 @@ async def _handle_ui_blink(blink_off):
         if blink_off:
             display.display_clear(OLED, "everything")
         else:
-            # We don't easily know who won here, but render_victory was called.
-            # We can just re-render or assume the winner is stored.
-            # For simplicity, let's just not clear it if we want it to blink.
-            # Actually, render_victory is async, we can call it if we store winner.
-            # Let's just store the winner in Game_Stats for blinking.
-            winner = 1 if game.player_1_score >= game.player_1_target else 2
-            await ui.render_victory(state_machine, game, OLED, winner)
+            await ui.render_victory(state_machine, game, OLED, game.winner)
+
+    elif state_machine.shootout_announcement:
+        if blink_off:
+            await hw_wrapper.render_shootout_announcement(
+                state_machine, game, visible=False
+            )
+        else:
+            await hw_wrapper.render_shootout_announcement(
+                state_machine, game, visible=True
+            )
 
     return not blink_off
 
@@ -180,6 +184,17 @@ async def timer_worker():
                     if state_machine.shot_clock_idle:
                         game.countdown = 15
 
+                # Check for Tie-Breaker Trigger (Match ends in a draw)
+                if (
+                    game.match_countdown == 0
+                    and game.player_1_score == game.player_2_score
+                ):
+                    game.match_timer_running = False
+                    state_machine.update_state(State_Machine.SHOOTOUT_ANNOUNCEMENT)
+                    asyncio.create_task(
+                        hw_wrapper.render_shootout_announcement(state_machine, game)
+                    )
+
                 # Refresh display
                 # If shot clock isn't running, we call update_timer_display here.
                 # If it IS running, _handle_countdown_tick -> _update_clock_display
@@ -201,12 +216,22 @@ async def timer_worker():
             flash_checker = now
             flash_off = _handle_expired_flash(flash_off)
 
-        # 3. UI Blinking
+        # 3. Shootout Stopwatch Tick
+        elif state_machine.shootout_p1_running or state_machine.shootout_p2_running:
+            # Avoid overwriting the final time during the victory pause
+            if not (state_machine.shootout_p2_running and game.p2_shootout_time > 0):
+                current_ms = utime.ticks_diff(now, game.shootout_start_tick)
+                await hw_wrapper.render_shootout_stopwatch(
+                    state_machine, game, current_ms
+                )
+
+        # 4. UI Blinking
         blink_states = (
             state_machine.profile_selection
             or state_machine.menu
             or state_machine.editing_value
             or state_machine.victory
+            or state_machine.shootout_announcement
         )
         if blink_states and utime.ticks_diff(now, blink_checker) > 500:
             blink_checker = now
@@ -288,6 +313,12 @@ class HardwareWrapper:
 
     async def render_message(self, sm, g, message, font_size=1):
         await ui.render_message(sm, g, self.oled, message, font_size)
+
+    async def render_shootout_announcement(self, sm, g, visible=True):
+        await ui.render_shootout_announcement(sm, g, self.oled, visible)
+
+    async def render_shootout_stopwatch(self, sm, g, current_ms):
+        await ui.render_shootout_stopwatch(sm, g, self.oled, current_ms)
 
 
 hw_wrapper = HardwareWrapper(OLED)

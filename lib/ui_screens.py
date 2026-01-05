@@ -195,15 +195,16 @@ async def render_message(state_machine, game, oled, message, font_size=1):
         oled.text_scaled(line, int(x_pos), int(y_pos), font_size)
         y_pos += line_height
 
-    # Re-render scoreline at the bottom, suppressing scores and forcing match timer redraw
-    render_scoreline(
-        oled,
-        state_machine,
-        game,
-        False,
-        suppress_scores=True,
-        force_match_timer=True,
-    )
+    # Re-render scoreline at the bottom (except during shootout announcement)
+    if not state_machine.shootout_announcement:
+        render_scoreline(
+            oled,
+            state_machine,
+            game,
+            False,
+            suppress_scores=True,
+            force_match_timer=True,
+        )
 
     oled.show()
 
@@ -290,4 +291,67 @@ async def render_exit_confirmation(state_machine, game, oled):
         align="center",
         send_payload=False,
     )
+    oled.show()
+
+
+async def render_shootout_announcement(state_machine, game, oled, visible=True):
+    """Renders the '6-ball shootout' announcement."""
+    if not visible:
+        display.display_clear(oled, "everything")
+        return
+
+    await render_message(state_machine, game, oled, "6 Ball\nShootout", font_size=2)
+
+
+async def render_shootout_stopwatch(state_machine, game, oled, current_ms):
+    """Renders the shootout stopwatch and time-to-beat for P2."""
+    display.display_clear(oled, "everything", send_payload=False)
+    current_shooter = 1
+    if state_machine.shootout_p2_wait or state_machine.shootout_p2_running:
+        current_shooter = 2
+    current_ms = 0 if state_machine.shootout_p2_wait else current_ms
+
+    time_str = display.format_stopwatch(current_ms)
+    # Draw stopwatch slightly higher than center
+    display.draw_text_in_region(
+        oled,
+        "up_shootout_current_shooter",
+        f"Player {current_shooter}",
+        font_size=2,
+        align="center",
+        y_offset=-2,
+        send_payload=False,
+    )
+    display.draw_text_in_region(
+        oled,
+        "up_shootout_stop_watch",
+        time_str,
+        font_size=2,
+        align="center",
+        send_payload=False,
+    )
+
+    # If it's P2's turn (WAIT or RUNNING), show P1's time to beat at the bottom
+    if (
+        state_machine.shootout_p2_wait or state_machine.shootout_p2_running
+    ) and game.p1_shootout_time > 0:
+        player_str = "Time to beat"
+        beat_str = display.format_stopwatch(game.p1_shootout_time)
+        display.draw_text_in_region(
+            oled,
+            "up_shootout_p1_title",
+            player_str,
+            font_size=1,
+            align="center",
+            send_payload=False,
+        )
+        display.draw_text_in_region(
+            oled,
+            "up_shootout_p1_time",
+            beat_str,
+            font_size=1,
+            align="center",
+            send_payload=False,
+        )
+
     oled.show()

@@ -75,9 +75,9 @@ class GameRules:
         if (game.player_1_score >= game.player_1_target) or (
             game.player_2_score >= game.player_2_target
         ):
-            winner = 1 if game.player_1_score >= game.player_1_target else 2
+            game.winner = 1 if game.player_1_score >= game.player_1_target else 2
             state_machine.update_state(State_Machine.VICTORY)
-            await hw_module.render_victory(state_machine, game, winner)
+            await hw_module.render_victory(state_machine, game, game.winner)
             return True
         return False
 

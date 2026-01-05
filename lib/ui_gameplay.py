@@ -84,6 +84,11 @@ async def update_timer_display(state_machine, game, oled):
             State_Machine.MENU,
             State_Machine.EDITING_VALUE,
             State_Machine.EXIT_MATCH_CONFIRMATION,
+            State_Machine.SHOOTOUT_ANNOUNCEMENT,
+            State_Machine.SHOOTOUT_P1_WAIT,
+            State_Machine.SHOOTOUT_P1_RUNNING,
+            State_Machine.SHOOTOUT_P2_WAIT,
+            State_Machine.SHOOTOUT_P2_RUNNING,
         ]
 
         if state_machine.state not in overlay_states:
@@ -112,6 +117,11 @@ async def update_timer_display(state_machine, game, oled):
             State_Machine.MENU,
             State_Machine.EDITING_VALUE,
             State_Machine.EXIT_MATCH_CONFIRMATION,
+            State_Machine.SHOOTOUT_ANNOUNCEMENT,
+            State_Machine.SHOOTOUT_P1_WAIT,
+            State_Machine.SHOOTOUT_P1_RUNNING,
+            State_Machine.SHOOTOUT_P2_WAIT,
+            State_Machine.SHOOTOUT_P2_RUNNING,
         ]
         if state_machine.state not in no_match_timer_states:
             render_ultimate_pool_shooter_indicators(oled, state_machine, game, False)

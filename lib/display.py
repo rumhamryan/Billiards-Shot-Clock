@@ -8,7 +8,7 @@ def get_region(key):
     return DISPLAY_REGIONS.get(key, (0, 0, 0, 0))
 
 
-def draw_text_in_region(
+def draw_text_in_region(  # noqa: PLR0913
     oled,
     region_key,
     text,
@@ -17,6 +17,7 @@ def draw_text_in_region(
     send_payload=False,
     clear=True,
     x_offset=0,
+    y_offset=0,
 ):
     """
     Draws text aligned within a specific region.
@@ -24,6 +25,7 @@ def draw_text_in_region(
     """
     x, y, w, h = get_region(region_key)
     x += x_offset
+    y += y_offset
 
     if clear:
         oled.rect(x, y, w, h, oled.black, True)
@@ -94,3 +96,12 @@ def format_match_timer(seconds):
     """Formats seconds into MM:SS."""
     m, s = divmod(seconds, 60)
     return f"{m}:{s:02d}"
+
+
+def format_stopwatch(ms):
+    """Formats milliseconds into SS.CC (Seconds.Centiseconds)."""
+    # Total seconds and remainder ms
+    total_seconds, rem_ms = divmod(ms, 1000)
+    # Centiseconds
+    cs = rem_ms // 10
+    return f"{total_seconds:02d}.{cs:02d}"

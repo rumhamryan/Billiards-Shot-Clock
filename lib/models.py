@@ -15,6 +15,11 @@ class State_Machine:
     EXIT_MATCH_CONFIRMATION = "exit_match_confirmation"
     CONFIRM_RACK_END = "confirm_rack_end"
     VICTORY = "victory"
+    SHOOTOUT_ANNOUNCEMENT = "shootout_announcement"
+    SHOOTOUT_P1_WAIT = "shootout_p1_wait"
+    SHOOTOUT_P1_RUNNING = "shootout_p1_running"
+    SHOOTOUT_P2_WAIT = "shootout_p2_wait"
+    SHOOTOUT_P2_RUNNING = "shootout_p2_running"
 
     def __init__(self, initial_state=PROFILE_SELECTION):
         self._set_defaults(initial_state)
@@ -81,6 +86,26 @@ class State_Machine:
     def victory(self):
         return self.state == self.VICTORY
 
+    @property
+    def shootout_announcement(self):
+        return self.state == self.SHOOTOUT_ANNOUNCEMENT
+
+    @property
+    def shootout_p1_wait(self):
+        return self.state == self.SHOOTOUT_P1_WAIT
+
+    @property
+    def shootout_p1_running(self):
+        return self.state == self.SHOOTOUT_P1_RUNNING
+
+    @property
+    def shootout_p2_wait(self):
+        return self.state == self.SHOOTOUT_P2_WAIT
+
+    @property
+    def shootout_p2_running(self):
+        return self.state == self.SHOOTOUT_P2_RUNNING
+
     def reset(self):
         """Resets the state machine to its initial state."""
         self._set_defaults()
@@ -142,6 +167,20 @@ class Game_Stats:
         )
         self.selected_profile = None
         self.timeouts_only = False
+        self.winner = 0  # 0: No winner yet, 1: Player 1, 2: Player 2
+        self._set_menu_defaults()
+
+        # New State Tracking Variables
+        self.profile_selection_index = 0
+        self.temp_setting_value = None
+
+        # Shootout Stats
+        self.p1_shootout_time = 0
+        self.p2_shootout_time = 0
+        self.shootout_start_tick = 0
+
+    def _set_menu_defaults(self):
+        """Sets the default values for the menu."""
         # Menu Order: Inning, Rack, Exit Match, Mute
         self.menu_items = ["Inning", "Rack", "Exit Match", "Mute"]
         self.menu_values = [
@@ -161,10 +200,6 @@ class Game_Stats:
             self.menu_values[self.current_menu_index],
             None,
         ]
-
-        # New State Tracking Variables
-        self.profile_selection_index = 0
-        self.temp_setting_value = None
 
     def add_score(self, player_num, points=1):
         """Atomically increments player score and updates menu."""

@@ -73,15 +73,59 @@ async def _handle_make_confirm_rack_end(state_machine, game, hw_module):
     if (game.player_1_score >= game.player_1_target) or (
         game.player_2_score >= game.player_2_target
     ):
-        winner = 1 if game.player_1_score >= game.player_1_target else 2
+        game.winner = 1 if game.player_1_score >= game.player_1_target else 2
         state_machine.update_state(State_Machine.VICTORY)
-        await hw_module.render_victory(state_machine, game, winner)
+        await hw_module.render_victory(state_machine, game, game.winner)
         return
 
     # Return to Idle
     game.break_shot = True
     state_machine.update_state(State_Machine.SHOT_CLOCK_IDLE)
     await hw_module.enter_idle_mode(state_machine, game)
+
+
+async def _handle_make_shootout(state_machine, game, hw_module):
+    """Handle MAKE button during Ultimate Pool shootout."""
+    import uasyncio as asyncio
+    import utime
+
+    state = state_machine.state
+
+    if state == State_Machine.SHOOTOUT_ANNOUNCEMENT:
+        state_machine.update_state(State_Machine.SHOOTOUT_P1_WAIT)
+        await hw_module.render_shootout_stopwatch(state_machine, game, 0)
+
+    elif state == State_Machine.SHOOTOUT_P1_WAIT:
+        game.shootout_start_tick = utime.ticks_ms()
+        state_machine.update_state(State_Machine.SHOOTOUT_P1_RUNNING)
+
+    elif state == State_Machine.SHOOTOUT_P1_RUNNING:
+        game.p1_shootout_time = utime.ticks_diff(
+            utime.ticks_ms(), game.shootout_start_tick
+        )
+        state_machine.update_state(State_Machine.SHOOTOUT_P2_WAIT)
+        await hw_module.render_shootout_stopwatch(state_machine, game, 0)
+
+    elif state == State_Machine.SHOOTOUT_P2_WAIT:
+        game.shootout_start_tick = utime.ticks_ms()
+        state_machine.update_state(State_Machine.SHOOTOUT_P2_RUNNING)
+
+    elif state == State_Machine.SHOOTOUT_P2_RUNNING:
+        game.p2_shootout_time = utime.ticks_diff(
+            utime.ticks_ms(), game.shootout_start_tick
+        )
+        # Render final time immediately to freeze display
+        await hw_module.render_shootout_stopwatch(
+            state_machine, game, game.p2_shootout_time
+        )
+
+        # 2 second pause after shootout finishes
+        await asyncio.sleep(2)
+
+        # Determine winner
+        game.winner = 1 if game.p1_shootout_time < game.p2_shootout_time else 2
+        state_machine.update_state(State_Machine.VICTORY)
+        await hw_module.render_victory(state_machine, game, game.winner)
 
 
 async def handle_make(state_machine, game, hw_module):
@@ -117,6 +161,15 @@ async def handle_make(state_machine, game, hw_module):
         game.reset()
         state_machine.reset()
         await hw_module.render_profile_selection(state_machine, game, clear_all=True)
+
+    elif state in [
+        State_Machine.SHOOTOUT_ANNOUNCEMENT,
+        State_Machine.SHOOTOUT_P1_WAIT,
+        State_Machine.SHOOTOUT_P1_RUNNING,
+        State_Machine.SHOOTOUT_P2_WAIT,
+        State_Machine.SHOOTOUT_P2_RUNNING,
+    ]:
+        await _handle_make_shootout(state_machine, game, hw_module)
 
     # Delegate Game States to Rules
     elif (
