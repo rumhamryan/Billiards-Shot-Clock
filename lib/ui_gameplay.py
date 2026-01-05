@@ -44,7 +44,10 @@ async def enter_idle_mode(state_machine, game, oled):
     )
 
     if game.break_shot:
-        game.countdown = game.profile_based_countdown + game.extension_duration
+        if game.selected_profile == "Ultimate Pool" and game.match_countdown < 600:
+            game.countdown = 30
+        else:
+            game.countdown = game.profile_based_countdown + game.extension_duration
     else:
         game.countdown = game.profile_based_countdown
 

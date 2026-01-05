@@ -45,6 +45,12 @@ class TestModels(unittest.TestCase):
         self.assertEqual(game.player_1_target, 0)
         self.assertEqual(game.match_type, "9-Ball")
 
+    def test_ultimate_pool_match_clock_initialization(self):
+        """Ensure Ultimate Pool match clock defaults to 1800 seconds (30 mins)."""
+        game = Game_Stats()
+        game.selected_profile = "Ultimate Pool"
+        self.assertEqual(game.match_countdown, 1800)
+
     def test_game_stats_menu_update(self):
         # Mock dependencies
         oled = "OLED_MOCK"
