@@ -27,17 +27,13 @@ async def enter_idle_mode(state_machine, game, oled):
             oled,
             "shot_clock_digit_1",
             timer_str[0],
-            font_size=8,
-            align="center",
-            send_payload=False,
+            display.TextOptions(font_size=8, align="center", send_payload=False),
         )
         display.draw_text_in_region(
             oled,
             "shot_clock_digit_2",
             timer_str[1],
-            font_size=8,
-            align="center",
-            send_payload=False,
+            display.TextOptions(font_size=8, align="center", send_payload=False),
         )
     else:
         game.speaker_5_count = 4
@@ -57,17 +53,13 @@ async def enter_idle_mode(state_machine, game, oled):
         oled,
         "shot_clock_digit_1",
         timer_str[0],
-        font_size=8,
-        align="center",
-        send_payload=False,
+        display.TextOptions(font_size=8, align="center", send_payload=False),
     )
     display.draw_text_in_region(
         oled,
         "shot_clock_digit_2",
         timer_str[1],
-        font_size=8,
-        align="center",
-        send_payload=True,
+        display.TextOptions(font_size=8, align="center", send_payload=True),
     )
 
 
@@ -98,17 +90,13 @@ async def update_timer_display(state_machine, game, oled):
                 oled,
                 "shot_clock_digit_1",
                 timer_str[0],
-                font_size=8,
-                align="center",
-                send_payload=False,
+                display.TextOptions(font_size=8, align="center", send_payload=False),
             )
             display.draw_text_in_region(
                 oled,
                 "shot_clock_digit_2",
                 timer_str[1],
-                font_size=8,
-                align="center",
-                send_payload=False,
+                display.TextOptions(font_size=8, align="center", send_payload=False),
             )
 
         # Always update match timer (helper handles individual digit clearing)
@@ -134,15 +122,11 @@ async def update_timer_display(state_machine, game, oled):
             oled,
             "shot_clock_digit_1",
             timer_str[0],
-            font_size=8,
-            align="center",
-            send_payload=False,
+            display.TextOptions(font_size=8, align="center", send_payload=False),
         )
         display.draw_text_in_region(
             oled,
             "shot_clock_digit_2",
             timer_str[1],
-            font_size=8,
-            align="center",
-            send_payload=True,
+            display.TextOptions(font_size=8, align="center", send_payload=True),
         )

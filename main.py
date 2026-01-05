@@ -40,35 +40,27 @@ def _update_clock_display(curr_val, new_val):
             OLED,
             "shot_clock_digit_1",
             timer_str[0],
-            font_size=8,
-            align="center",
-            send_payload=False,
+            display.TextOptions(font_size=8, align="center", send_payload=False),
         )
         display.draw_text_in_region(
             OLED,
             "shot_clock_digit_2",
             timer_str[1],
-            font_size=8,
-            align="center",
-            send_payload=True,
+            display.TextOptions(font_size=8, align="center", send_payload=True),
         )
     elif curr_tens != new_tens:
         display.draw_text_in_region(
             OLED,
             "shot_clock_digit_1",
             str(new_tens),
-            font_size=8,
-            align="center",
-            send_payload=True,
+            display.TextOptions(font_size=8, align="center", send_payload=True),
         )
     elif curr_units != new_units:
         display.draw_text_in_region(
             OLED,
             "shot_clock_digit_2",
             str(new_units),
-            font_size=8,
-            align="center",
-            send_payload=True,
+            display.TextOptions(font_size=8, align="center", send_payload=True),
         )
 
 
@@ -100,17 +92,13 @@ def _handle_expired_flash(flash_off):
             OLED,
             "shot_clock_digit_1",
             timer_str[0],
-            font_size=8,
-            align="center",
-            send_payload=False,
+            display.TextOptions(font_size=8, align="center", send_payload=False),
         )
         display.draw_text_in_region(
             OLED,
             "shot_clock_digit_2",
             timer_str[1],
-            font_size=8,
-            align="center",
-            send_payload=True,
+            display.TextOptions(font_size=8, align="center", send_payload=True),
         )
     else:
         display.display_clear(OLED, "shot_clock_digit_1", "shot_clock_digit_2")

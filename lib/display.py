@@ -8,47 +8,58 @@ def get_region(key):
     return DISPLAY_REGIONS.get(key, (0, 0, 0, 0))
 
 
-def draw_text_in_region(  # noqa: PLR0913
-    oled,
-    region_key,
-    text,
-    font_size=1,
-    align="center",
-    send_payload=False,
-    clear=True,
-    x_offset=0,
-    y_offset=0,
-):
+class TextOptions:
+    def __init__(
+        self,
+        font_size=1,
+        align="center",
+        send_payload=False,
+        clear=True,
+        x_offset=0,
+        y_offset=0,
+    ):
+        self.font_size = font_size
+        self.align = align
+        self.send_payload = send_payload
+        self.clear = clear
+        self.x_offset = x_offset
+        self.y_offset = y_offset
+
+
+DEFAULT_OPTIONS = TextOptions()
+
+
+def draw_text_in_region(oled, region_key, text, options=DEFAULT_OPTIONS):
     """
     Draws text aligned within a specific region.
-    align: "center", "left", "right"
+    Uses TextOptions for styling and behavior configuration.
     """
     x, y, w, h = get_region(region_key)
-    x += x_offset
-    y += y_offset
+    x += options.x_offset
+    y += options.y_offset
 
-    if clear:
+    if options.clear:
         oled.rect(x, y, w, h, oled.black, True)
 
     # Calculate text dimensions (approximate based on font size)
-    char_w = 8 * font_size
+    char_w = 8 * options.font_size
     text_w = len(str(text)) * char_w
 
     # Calculate X position
-    if align == "center":
+    if options.align == "center":
         draw_x = x + (w - text_w) // 2
-    elif align == "right":
+    elif options.align == "right":
         draw_x = x + w - text_w
     else:  # left
         draw_x = x
 
     # Calculate Y position (vertically centered)
-    char_h = 8 * font_size
+    char_h = 8 * options.font_size
     draw_y = y + (h - char_h) // 2
 
-    oled.text_scaled(str(text), int(draw_x), int(draw_y), font_size)
+    oled.text_scaled(str(text), int(draw_x), int(draw_y), options.font_size)
 
-    if send_payload:
+    if options.send_payload:
         oled.show()
 
 

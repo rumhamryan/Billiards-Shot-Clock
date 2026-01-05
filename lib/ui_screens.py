@@ -16,51 +16,40 @@ async def render_profile_selection(state_machine, game, oled, clear_all=False):
         oled,
         "profile_title_selection",
         "Select Game:",
-        align="center",
-        send_payload=False,
+        display.TextOptions(align="center", send_payload=False),
     )
     if str(name) == "Ultimate Pool":
         display.draw_text_in_region(
             oled,
             "profile_selection_alt_value",
             "Ultimate",
-            font_size=2,
-            align="center",
-            send_payload=False,
+            display.TextOptions(font_size=2, align="center", send_payload=False),
         )
         display.draw_text_in_region(
             oled,
             "profile_selection_alt_value_2",
             "Pool",
-            font_size=2,
-            align="center",
-            send_payload=True,
+            display.TextOptions(font_size=2, align="center", send_payload=True),
         )
     elif str(name) == "Timeouts Mode":
         display.draw_text_in_region(
             oled,
             "profile_selection_alt_value",
             "Timeouts",
-            font_size=2,
-            align="center",
-            send_payload=False,
+            display.TextOptions(font_size=2, align="center", send_payload=False),
         )
         display.draw_text_in_region(
             oled,
             "profile_selection_alt_value_2",
             "Mode",
-            font_size=2,
-            align="center",
-            send_payload=True,
+            display.TextOptions(font_size=2, align="center", send_payload=True),
         )
     else:
         display.draw_text_in_region(
             oled,
             "profile_selection_value",
             str(name),
-            font_size=3,
-            align="center",
-            send_payload=True,
+            display.TextOptions(font_size=3, align="center", send_payload=True),
         )
 
 
@@ -72,15 +61,13 @@ async def render_skill_level_selection(state_machine, game, oled, player_num):
         oled,
         "skill_level_player",
         f"Player {player_num}",
-        align="center",
-        send_payload=False,
+        display.TextOptions(align="center", send_payload=False),
     )
     display.draw_text_in_region(
         oled,
         "skill_level_label",
         "Skill Level:",
-        align="center",
-        send_payload=False,
+        display.TextOptions(align="center", send_payload=False),
     )
 
     sl = game.temp_setting_value
@@ -88,9 +75,7 @@ async def render_skill_level_selection(state_machine, game, oled, player_num):
         oled,
         "skill_level_value",
         str(sl),
-        font_size=3,
-        align="center",
-        send_payload=True,
+        display.TextOptions(font_size=3, align="center", send_payload=True),
     )
 
 
@@ -102,8 +87,7 @@ async def render_game_type_selection(state_machine, game, oled):
         oled,
         "game_type_title",
         "Select Game:",
-        align="center",
-        send_payload=False,
+        display.TextOptions(align="center", send_payload=False),
     )
 
     # temp_setting_value: 0 for 8-Ball, 1 for 9-Ball
@@ -112,9 +96,7 @@ async def render_game_type_selection(state_machine, game, oled):
         oled,
         "game_type_value",
         game_type,
-        font_size=2,
-        align="center",
-        send_payload=True,
+        display.TextOptions(font_size=2, align="center", send_payload=True),
     )
 
 
@@ -126,8 +108,7 @@ async def render_wnt_target_selection(state_machine, game, oled):
         oled,
         "wnt_target_title",
         "Race to",
-        align="center",
-        send_payload=False,
+        display.TextOptions(align="center", send_payload=False),
     )
 
     target = game.temp_setting_value
@@ -135,9 +116,7 @@ async def render_wnt_target_selection(state_machine, game, oled):
         oled,
         "wnt_target_value",
         str(target),
-        font_size=3,
-        align="center",
-        send_payload=True,
+        display.TextOptions(font_size=3, align="center", send_payload=True),
     )
 
 
@@ -149,17 +128,13 @@ async def render_victory(state_machine, game, oled, winner_num):
         oled,
         "victory_title",
         "VICTORY!",
-        font_size=2,
-        align="center",
-        send_payload=False,
+        display.TextOptions(font_size=2, align="center", send_payload=False),
     )
     display.draw_text_in_region(
         oled,
         "victory_winner",
         f"Player {winner_num}",
-        font_size=2,
-        align="center",
-        send_payload=False,
+        display.TextOptions(font_size=2, align="center", send_payload=False),
     )
 
     oled.show()
@@ -219,17 +194,13 @@ async def render_menu(state_machine, game, oled):
         oled,
         "menu_header_left",
         "Game",
-        font_size=2,
-        align="left",
-        send_payload=False,
+        display.TextOptions(font_size=2, align="left", send_payload=False),
     )
     display.draw_text_in_region(
         oled,
         "menu_header_right",
         "Menu",
-        font_size=2,
-        align="left",
-        send_payload=False,
+        display.TextOptions(font_size=2, align="left", send_payload=False),
     )
     display.draw_rect_in_region(oled, "menu_separator_top", fill=True, send_payload=False)
     display.draw_rect_in_region(
@@ -257,22 +228,19 @@ async def render_menu(state_machine, game, oled):
         oled,
         "menu_line_prev",
         fmt(game.menu_items[prev_idx], val_prev),
-        align="left",
-        send_payload=False,
+        display.TextOptions(align="left", send_payload=False),
     )
     display.draw_text_in_region(
         oled,
         "menu_line_curr",
         fmt(game.menu_items[game.current_menu_index], val_curr),
-        align="left",
-        send_payload=False,
+        display.TextOptions(align="left", send_payload=False),
     )
     display.draw_text_in_region(
         oled,
         "menu_line_next",
         fmt(game.menu_items[next_idx], val_next),
-        align="left",
-        send_payload=False,
+        display.TextOptions(align="left", send_payload=False),
     )
 
     # 5. Draw the cursor
@@ -288,8 +256,7 @@ async def render_exit_confirmation(state_machine, game, oled):
         oled,
         "confirmation_message",
         "Are you sure?",
-        align="center",
-        send_payload=False,
+        display.TextOptions(align="center", send_payload=False),
     )
     oled.show()
 
@@ -317,18 +284,13 @@ async def render_shootout_stopwatch(state_machine, game, oled, current_ms):
         oled,
         "up_shootout_current_shooter",
         f"Player {current_shooter}",
-        font_size=2,
-        align="center",
-        y_offset=-2,
-        send_payload=False,
+        display.TextOptions(font_size=2, align="center", y_offset=-2, send_payload=False),
     )
     display.draw_text_in_region(
         oled,
         "up_shootout_stop_watch",
         time_str,
-        font_size=2,
-        align="center",
-        send_payload=False,
+        display.TextOptions(font_size=2, align="center", send_payload=False),
     )
 
     # If it's P2's turn (WAIT or RUNNING), show P1's time to beat at the bottom
@@ -341,17 +303,13 @@ async def render_shootout_stopwatch(state_machine, game, oled, current_ms):
             oled,
             "up_shootout_p1_title",
             player_str,
-            font_size=1,
-            align="center",
-            send_payload=False,
+            display.TextOptions(font_size=1, align="center", send_payload=False),
         )
         display.draw_text_in_region(
             oled,
             "up_shootout_p1_time",
             beat_str,
-            font_size=1,
-            align="center",
-            send_payload=False,
+            display.TextOptions(font_size=1, align="center", send_payload=False),
         )
 
     oled.show()

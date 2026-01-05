@@ -64,7 +64,10 @@ def render_match_timer(oled, state_machine, game, force_all=False, send_payload=
         display.display_clear(oled, "match_clock_full", send_payload=False)
         # Manually draw colon
         display.draw_text_in_region(
-            oled, colon_region, ":", align="center", send_payload=False
+            oled,
+            colon_region,
+            ":",
+            display.TextOptions(align="center", send_payload=False),
         )
 
     for i in range(4):
@@ -76,7 +79,10 @@ def render_match_timer(oled, state_machine, game, force_all=False, send_payload=
             region_key = f"match_clock_digit_{i + 1}{suffix}"
 
             display.draw_text_in_region(
-                oled, region_key, str(new_digits[i]), align="center", send_payload=False
+                oled,
+                region_key,
+                str(new_digits[i]),
+                display.TextOptions(align="center", send_payload=False),
             )
 
     game.prev_match_countdown = new_val
@@ -127,8 +133,7 @@ def render_scoreline(
             oled,
             "timeouts_mode_title",
             "Timeouts Mode",
-            align="left",
-            send_payload=False,
+            display.TextOptions(align="left", send_payload=False),
         )
 
     elif game.selected_profile in ["APA", "WNT", "BCA", "Ultimate Pool"]:
@@ -143,25 +148,29 @@ def render_scoreline(
                 oled,
                 f"{prefix}p1_score",
                 str(game.player_1_score),
-                align=alignment,
-                send_payload=False,
-                x_offset=p1_x_offset,
+                display.TextOptions(
+                    align=alignment, send_payload=False, x_offset=p1_x_offset
+                ),
             )
             display.draw_text_in_region(
                 oled,
                 f"{prefix}p1_separator",
                 "/",
-                align="center",
-                send_payload=False,
-                x_offset=p1_x_offset - shift,
+                display.TextOptions(
+                    align="center",
+                    send_payload=False,
+                    x_offset=p1_x_offset - shift,
+                ),
             )
             display.draw_text_in_region(
                 oled,
                 f"{prefix}p1_target",
                 str(game.player_1_target),
-                align="left",
-                send_payload=False,
-                x_offset=p1_x_offset - shift,
+                display.TextOptions(
+                    align="left",
+                    send_payload=False,
+                    x_offset=p1_x_offset - shift,
+                ),
             )
 
             # Draw player_2 score/target_score
@@ -169,22 +178,19 @@ def render_scoreline(
                 oled,
                 f"{prefix}p2_score",
                 str(game.player_2_score),
-                align="right",
-                send_payload=False,
+                display.TextOptions(align="right", send_payload=False),
             )
             display.draw_text_in_region(
                 oled,
                 f"{prefix}p2_separator",
                 "/",
-                align="center",
-                send_payload=False,
+                display.TextOptions(align="center", send_payload=False),
             )
             display.draw_text_in_region(
                 oled,
                 f"{prefix}p2_target",
                 str(game.player_2_target),
-                align="left",
-                send_payload=False,
+                display.TextOptions(align="left", send_payload=False),
             )
 
         if game.selected_profile == "Ultimate Pool":
