@@ -150,7 +150,11 @@ def render_scoreline(
             alignment = "left" if prefix == "" and game.player_1_score < 10 else "right"
 
             shift = 6 if (prefix == "" and alignment == "left") else 0
-            p2_x_offset = 8 if is_apa_8ball else 0
+
+            is_wnt_single_digit = (
+                game.selected_profile == "WNT" and game.player_2_target < 10
+            )
+            p2_x_offset = 8 if (is_apa_8ball or is_wnt_single_digit) else 0
 
             # Draw player_1 score/target_score
             display.draw_text_in_region(

@@ -26,8 +26,12 @@ def calculate_apa_targets(game):
             game.player_1_target = match_rules["targets"][str(game.player_1_skill_level)]
             game.player_2_target = match_rules["targets"][str(game.player_2_skill_level)]
         elif game.match_type == "8-Ball":
-            p1_sl = str(game.player_1_skill_level)
-            p2_sl = str(game.player_2_skill_level)
+            # Clamp SL to valid 8-Ball range (2-7)
+            p1_sl_val = max(2, min(7, game.player_1_skill_level))
+            p2_sl_val = max(2, min(7, game.player_2_skill_level))
+
+            p1_sl = str(p1_sl_val)
+            p2_sl = str(p2_sl_val)
             race = match_rules["race_grid"][p1_sl][p2_sl]
             game.player_1_target = race[0]
             game.player_2_target = race[1]

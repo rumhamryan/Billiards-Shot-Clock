@@ -414,6 +414,31 @@ class TestButtonLogic(unittest.IsolatedAsyncioTestCase):
         logic._calculate_apa_targets(self.game)
         self.assertEqual(self.game.player_1_target, 14)
 
+    async def test_calculate_apa_8ball_targets_clamping(self):
+        self.game.match_type = "8-Ball"
+        self.game.player_1_skill_level = 9  # Should clamp to 7
+        self.game.player_2_skill_level = 1  # Should clamp to 2
+
+        # Mock config with race grid for 7v2
+        # Real rules: 7 vs 2 -> 7 needs 5, 2 needs 2.
+        self.game.rules_config = {
+            "APA": {
+                "8-Ball": {
+                    "race_grid": {
+                        "7": {"2": [5, 2]},
+                    },
+                    "timeouts": {"3": 2, "4": 1},
+                }
+            }
+        }
+
+        logic._calculate_apa_targets(self.game)
+
+        # Verify clamping worked and lookup succeeded
+        # If clamping failed, lookup would be "9" vs "1" -> KeyError -> Default 14
+        self.assertEqual(self.game.player_1_target, 5)
+        self.assertEqual(self.game.player_2_target, 2)
+
     async def test_handle_make_wnt_target_selection_fallback(self):
         self.game.rules_config = {}  # Trigger fallback
         self.game.temp_setting_value = 11
